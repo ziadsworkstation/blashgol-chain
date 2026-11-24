@@ -1,0 +1,12 @@
+{
+ "name": "Soporte en L",
+ "units": "mm",
+ "objects": [
+  {"id":"base","name":"Base","type":"box","op":"add","p":{"x":80,"y":40,"z":8},"pos":[0,0,4],"rot":[0,0,0],"color":"#8aa4c8"},
+  {"id":"pared","name":"Pared","type":"box","op":"add","p":{"x":8,"y":40,"z":50},"pos":[-36,0,29],"rot":[0,0,0],"color":"#8aa4c8"},
+  {"id":"refuerzo","name":"Refuerzo","type":"box","op":"add","p":{"x":30,"y":6,"z":30},"pos":[-25,0,15],"rot":[0,-45,0],"color":"#8aa4c8"},
+  {"id":"t1","name":"Taladro base 1","type":"cylinder","op":"sub","p":{"r":3.5,"h":20,"n":48},"pos":[15,-10,4],"rot":[0,0,0],"color":"#d9a441"},
+  {"id":"t2","name":"Taladro base 2","type":"cylinder","op":"sub","p":{"r":3.5,"h":20,"n":48},"pos":[15,10,4],"rot":[0,0,0],"color":"#d9a441"},
+  {"id":"t3","name":"Taladro pared","type":"cylinder","op":"sub","p":{"r":5,"h":20,"n":48},"pos":[-36,0,40],"rot":[0,90,0],"color":"#d9a441"}
+ ]
+}
