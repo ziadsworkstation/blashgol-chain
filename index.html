@@ -134,6 +134,8 @@ kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:
 .pj small{color:var(--mute);font-size:12px}
 .pj .row{margin:0;margin-top:auto}
 #pj{width:min(980px,96vw)}
+.dimbox{position:absolute;z-index:2;background:var(--panel);border:1px solid var(--pr);border-radius:10px;padding:8px;box-shadow:0 8px 24px #0003;display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;max-width:330px}
+.dimbox label.f input{width:86px}
 #chatpane.drop{outline:2px dashed var(--pr);outline-offset:-6px}
 @media (max-width:900px){
  body{overflow:auto}
@@ -230,12 +232,12 @@ kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:
 </dialog>
 <dialog id="sk">
  <div class="row" style="margin:0 0 10px"><h2 style="margin:0;font-size:17px" id="sktitle">Croquis</h2>
-  <div class="seg" id="sktools"><button data-t="pts" class="on" title="Clic para añadir puntos de una polilínea">Línea</button><button data-t="rect" title="Arrastra de esquina a esquina">Rectángulo</button><button data-t="circ" title="Arrastra desde el centro">Círculo</button></div>
+  <div class="seg" id="sktools"><button data-t="pts" class="on" title="Clic para añadir puntos de una polilínea">Línea</button><button data-t="rect" title="Arrastra de esquina a esquina">Rectángulo</button><button data-t="circ" title="Arrastra desde el centro">Círculo</button><button data-t="dim" title="Clic en una línea, un círculo, un rectángulo o un punto para escribir su medida exacta">Cota</button></div>
   <span class="sp"></span><button class="btn" id="skfit">Encuadrar</button><button class="btn" id="skcancel">Cancelar</button><button class="btn pri" id="skok">Aceptar</button></div>
  <div class="row" id="sknew" hidden style="margin:0 0 10px"><span class="help">Plano:</span><div class="seg" id="skplane"><button data-pl="XY" class="on">XY · Planta</button><button data-pl="XZ">XZ · Alzado</button><button data-pl="YZ">YZ · Perfil</button></div>
   <span class="sp"></span><span class="help">Terminar con:</span><button class="btn pri" data-mk="extrude">Extruir</button><button class="btn" data-mk="cut">Extruir corte</button><button class="btn" data-mk="revolve">Revolución</button><button class="btn" data-mk="sweep">Barrido</button><button class="btn" data-mk="rib">Nervio</button></div>
  <div class="skw">
-  <div id="svgw"><svg id="svg"></svg><div id="skinfo"></div></div>
+  <div id="svgw"><svg id="svg"></svg><div id="skinfo"></div><div id="dimbox" class="dimbox" hidden></div></div>
   <div>
    <div class="ttl" style="margin-top:0">Lazos</div>
    <div class="chips" id="loops"></div>
@@ -246,7 +248,8 @@ kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:
    <div class="ttl">Puntos del lazo activo (x, y por línea)</div>
    <textarea id="sktxt" class="code" rows="7" spellcheck="false"></textarea>
    <div class="row"><button class="btn" id="sktxtok">Aplicar texto</button>
-    <label class="f" style="flex-direction:row;align-items:center;gap:6px">Rejilla<select id="skstep" class="sel2" style="width:auto"><option>0.5</option><option selected>1</option><option>5</option><option>10</option></select></label></div>
+    <label class="f" style="flex-direction:row;align-items:center;gap:6px">Rejilla<select id="skstep" class="sel2" style="width:auto"><option>0.5</option><option selected>1</option><option>5</option><option>10</option></select></label>
+    <label class="ck"><input type="checkbox" id="skdims" checked>Mostrar cotas</label></div>
    <p class="help" id="skhelp"></p>
   </div>
  </div>
@@ -679,9 +682,10 @@ const PRE={rect:['Rectángulo','A ancho · B alto',()=>rect(+$('#pa').value,+$('
  l:['Perfil L','A ancho · B alto',()=>lprof(+$('#pa').value,+$('#pb').value)],line:['Línea','A largo (para nervios)',()=>[[0,0],[+$('#pa').value,0]]]};
 const AXL={XY:['X','Y'],XZ:['X','Z'],YZ:['Y','Z']};
 function planeOf(rot){return Object.keys(PLANES).find(k=>JSON.stringify(PLANES[k])===JSON.stringify(rot))}
-function setTool(t){SK.tool=t;$$('#sktools button').forEach(b=>b.classList.toggle('on',b.dataset.t===t))}
+function setTool(t){SK.tool=t;closeDim();svg.style.cursor=t==='dim'?'pointer':'crosshair';$$('#sktools button').forEach(b=>b.classList.toggle('on',b.dataset.t===t))}
 function newSketch(){SK={new:true,plane:'XY',loops:[[]],active:0,open:false,axis:false,holes:true,drag:-1,s:4,ox:0,oy:0,pan:null,shape:null,lab:AXL.XY};
- $('#sktitle').textContent='Croquis nuevo';$('#sknew').hidden=false;$('#skok').hidden=true;$('#sktools').hidden=false;setTool('rect');
+ $('#sktitle').textContent='Croquis nuevo';$('#sknew').hidden=false;$('#skok').hidden=true;$('#sktools').hidden=false;
+ $$('#sktools button').forEach(b=>b.hidden=false);setTool('rect');
  $$('#skplane button').forEach(b=>b.classList.toggle('on',b.dataset.pl==='XY'));
  $('#skhelp').textContent='Elige el plano, dibuja el contorno (rectángulo, círculo o línea punto a punto) y termina con una operación. Las formas cerradas que dibujes dentro del contorno serán agujeros. Para revolución, dibuja a la derecha del eje vertical: gira alrededor de él. Para nervio, dibuja una línea con «Línea». Doble clic borra un punto; rueda: zoom; Mayús+arrastrar: desplazar.';
  $('#addhole').hidden=false;$('#delloop').hidden=false;
@@ -706,7 +710,8 @@ function finishNew(kind){const closed=SK.loops.filter(l=>l.length>=3).map(l=>l.m
 function openSketch(id,key){const o=findO(id),T=TYPES[o.type];
  SK={id,key,loops:structuredClone(o[key].loops),active:0,open:!!T.open,axis:!!T.axis,holes:!!T.holes&&key==='sk',drag:-1,s:4,ox:0,oy:0,pan:null,shape:null,
   lab:T.axis?['Radio','Altura']:T.plane?AXL[planeOf(o.rot)]||['x','y']:['x','y']};
- $('#sknew').hidden=true;$('#skok').hidden=false;$('#sktools').hidden=SK.open;setTool('pts');
+ $('#sknew').hidden=true;$('#skok').hidden=false;$('#sktools').hidden=false;
+ $$('#sktools [data-t=rect],#sktools [data-t=circ]').forEach(b=>b.hidden=SK.open);setTool('pts');
  $('#sktitle').textContent=`Croquis · ${o.name}${key==='sk2'?' · perfil superior':''}`;
  $('#skhelp').textContent=(T.axis?'Revolución: x = radio (≥ 0), y = altura. El eje es la línea vertical x = 0. ':'')+(T.open?'Nervio: dibuja una línea abierta; el nervio rellena hacia el lado marcado hasta tocar el material. ':'')+'Clic en vacío añade un punto al final; clic sobre un tramo inserta; arrastra para mover; doble clic borra un punto. Rueda: zoom. Mayús+arrastrar o botón derecho: desplazar.';
  $('#addhole').hidden=!SK.holes;$('#delloop').hidden=!SK.holes;
@@ -731,11 +736,14 @@ function skDraw(){if(!SK)return;const W=svg.clientWidth,H=svg.clientHeight;let g
  if(SK.open&&SK.loops[0].length>1){const o=findO(SK.id),sg=o.p.flip?-1:1,L=SK.loops[0];for(let i=0;i<L.length-1;i++){const[a,b]=[L[i],L[i+1]],dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy)||1;
   const m=toS([(a[0]+b[0])/2,(a[1]+b[1])/2]),n=[-dy/l*sg,dx/l*sg];g+=`<line x1="${m[0]}" y1="${m[1]}" x2="${m[0]+n[0]*28}" y2="${m[1]-n[1]*28}" stroke="var(--cm)" stroke-width="2" marker-end="url(#ar)"/>`}}
  if(SK.lab){g+=`<text x="${W-8}" y="${SK.oy-6}" text-anchor="end" font-size="13" font-weight="600" fill="#c1121f">${SK.lab[0]}</text><text x="${SK.ox+6}" y="16" font-size="13" font-weight="600" fill="#2f8f4e">${SK.lab[1]}</text>`}
+ if($('#skdims').checked)g+=dimsSVG();
  if(SK.shape){const L=shapeLoop(SK.shape);if(L){const pts=L.map(toS).map(q=>q.join(',')).join(' ');g+=`<polygon points="${pts}" fill="var(--cm)" fill-opacity=".08" stroke="var(--cm)" stroke-width="2" stroke-dasharray="6 4"/>`;
   const[a,b]=[SK.shape.a,SK.shape.b],lab=SK.shape.t==='rect'?`${r3(Math.abs(b[0]-a[0]))} × ${r3(Math.abs(b[1]-a[1]))} mm`:`R ${r3(Math.hypot(b[0]-a[0],b[1]-a[1]))} mm`,q=toS(b);
   g+=`<text x="${q[0]+10}" y="${q[1]-10}" font-size="13" font-weight="600" fill="var(--cm)">${lab}</text>`}}
- (SK.loops[SK.active]||[]).forEach((p,i)=>{const[x,y]=toS(p);g+=`<circle cx="${x}" cy="${y}" r="${i===0?6:5}" fill="${i===0?'var(--cm)':'var(--panel)'}" stroke="var(--cm)" stroke-width="2"/>`});
- svg.innerHTML=`<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#c1121f"/></marker></defs>`+g;
+ const actC=circInfo(SK.loops[SK.active]);
+ if(actC){const[x,y]=toS([actC.cx,actC.cy]);g+=`<path d="M${x-7} ${y}H${x+7}M${x} ${y-7}V${y+7}" stroke="var(--cm)" stroke-width="2"/>`}
+ else (SK.loops[SK.active]||[]).forEach((p,i)=>{const[x,y]=toS(p);g+=`<circle cx="${x}" cy="${y}" r="${i===0?6:5}" fill="${i===0?'var(--cm)':'var(--panel)'}" stroke="var(--cm)" stroke-width="2"/>`});
+ svg.innerHTML=`<defs><marker id="da" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1L10 5L0 9z" fill="#0b4f8a"/></marker><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#c1121f"/></marker></defs>`+g;
  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const[x,y]of SK.loops[0]||[]){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y)}
  $('#skinfo').textContent=SK.loops[0]?.length?`Contorno ${r3(x1-x0)} × ${r3(y1-y0)} mm · ${SK.loops[0].length} puntos`:'';
  $('#loops').innerHTML=SK.loops.map((l,i)=>`<button class="chip ${i===SK.active?'on':''}" data-loop="${i}">${i===0?(SK.open?'Línea':'Contorno'):'Agujero '+i} · ${l.length}</button>`).join('');
@@ -743,6 +751,8 @@ function skDraw(){if(!SK)return;const W=svg.clientWidth,H=svg.clientHeight;let g
 const evP=e=>{const r=svg.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
 svg.addEventListener('pointerdown',e=>{if(!SK)return;const[px,py]=evP(e);svg.setPointerCapture(e.pointerId);
  if(e.button!==0||e.shiftKey){SK.pan=[px,py,SK.ox,SK.oy];return}
+ SK.lp=[px,py];if(SK.tool==='dim'){dimPick(px,py);return}
+ closeDim();
  if(SK.tool==='rect'||SK.tool==='circ'){const a=snapP(toW(px,py));SK.shape={t:SK.tool,a,b:a};return}
  const L=SK.loops[SK.active];if(!L)return;
  const i=L.findIndex(p=>{const[x,y]=toS(p);return Math.hypot(x-px,y-py)<9});if(i>=0){SK.drag=i;return}
@@ -752,15 +762,17 @@ svg.addEventListener('pointerdown',e=>{if(!SK)return;const[px,py]=evP(e);svg.set
  L.push(snapP(toW(px,py)));SK.drag=L.length-1;skDraw()});
 svg.addEventListener('pointermove',e=>{if(!SK)return;const[px,py]=evP(e);
  if(SK.pan){SK.ox=SK.pan[2]+px-SK.pan[0];SK.oy=SK.pan[3]+py-SK.pan[1];return skDraw()}
- if(SK.shape){SK.shape.b=snapP(toW(px,py));return skDraw()}
+ SK.lp=[px,py];if(SK.shape){SK.shape.b=snapP(toW(px,py));return skDraw()}
  if(SK.drag>=0){SK.loops[SK.active][SK.drag]=snapP(toW(px,py));skDraw()}});
 function shapeLoop(sh){const[a,b]=[sh.a,sh.b];
  if(sh.t==='rect'){if(Math.abs(b[0]-a[0])<1e-6||Math.abs(b[1]-a[1])<1e-6)return null;const x0=Math.min(a[0],b[0]),x1=Math.max(a[0],b[0]),y0=Math.min(a[1],b[1]),y1=Math.max(a[1],b[1]);return[[x0,y0],[x1,y0],[x1,y1],[x0,y1]]}
  const r=Math.hypot(b[0]-a[0],b[1]-a[1]);if(r<1e-6)return null;return circ(r,Math.max(3,+$('#pn').value|0||48),a[0],a[1])}
 svg.addEventListener('pointerup',()=>{if(!SK)return;SK.drag=-1;SK.pan=null;
- if(SK.shape){const L=shapeLoop(SK.shape);SK.shape=null;
+ if(SK.shape){const L=shapeLoop(SK.shape);SK.shape0=SK.shape.t;SK.shape=null;
   if(L){if(SK.axis)for(const q of L)q[0]=Math.max(0,q[0]);
-   if((SK.loops[0]||[]).length<3){SK.loops[0]=L;SK.active=0}else if(SK.holes){SK.loops.push(L);SK.active=SK.loops.length-1}else SK.loops[0]=L}
+   const kind=SK.shape0;
+   if((SK.loops[0]||[]).length<3){SK.loops[0]=L;SK.active=0}else if(SK.holes){SK.loops.push(L);SK.active=SK.loops.length-1}else SK.loops[0]=L;
+   skDraw();if(SK.lp)openDim({kind:circInfo(L)?'circ':'rect',li:SK.active},SK.lp[0],SK.lp[1]);return}
   skDraw()}});
 svg.addEventListener('contextmenu',e=>e.preventDefault());
 svg.addEventListener('dblclick',e=>{const[px,py]=evP(e),L=SK.loops[SK.active],min=SK.open?2:3;
@@ -779,7 +791,65 @@ $('#sktxtok').onclick=()=>{const P=$('#sktxt').value.split('\n').map(l=>l.split(
  if(P.length<(SK.open?2:3))return toast('Faltan puntos');SK.loops[SK.active]=SK.axis?P.map(([x,y])=>[Math.max(0,x),y]):P;skDraw();toast('Puntos aplicados')};
 $('#skstep').onchange=skDraw;$('#skfit').onclick=()=>{skFit();skDraw()};
 $('#skcancel').onclick=()=>$('#sk').close();
-$('#sk').addEventListener('close',()=>{SK=null});
+$('#sk').addEventListener('close',()=>{closeDim();SK=null});
+$('#skdims').onchange=()=>skDraw();
+$('#sk').addEventListener('cancel',e=>{e.preventDefault();if(dimT)closeDim();else if(SK?.shape){SK.shape=null;skDraw()}});
+// ---------- cotas ----------
+const fmtN=v=>String(+(+v).toFixed(2)).replace('.',',');
+function bbox(l){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const[x,y]of l){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y)}return{x0,y0,x1,y1}}
+function circInfo(l){if(!l||l.length<12)return null;let cx=0,cy=0;for(const[x,y]of l){cx+=x;cy+=y}cx/=l.length;cy/=l.length;
+ const rs=l.map(([x,y])=>Math.hypot(x-cx,y-cy)),r=rs.reduce((a,b)=>a+b,0)/rs.length;if(!(r>0)||rs.some(v=>Math.abs(v-r)>r*.02))return null;return{cx,cy,r}}
+function isRect(l){if(l.length!==4)return false;for(let i=0;i<4;i++){const a=l[i],b=l[(i+1)%4];if(Math.abs(a[0]-b[0])>1e-6&&Math.abs(a[1]-b[1])>1e-6)return false}return true}
+function dimText(x,y,t,ang,anchor){return`<text x="${x}" y="${y}" font-size="12" font-weight="600" fill="#0b4f8a" text-anchor="${anchor}" dominant-baseline="middle" transform="rotate(${ang} ${x} ${y})" paint-order="stroke" stroke="var(--vp)" stroke-width="4">${t}</text>`}
+function dimsSVG(){let g='';const C='#0b4f8a';
+ SK.loops.forEach(l=>{if(l.length<2)return;const ci=circInfo(l);
+  if(ci){const a=Math.PI/4,rp=toS([ci.cx+ci.r*Math.cos(a),ci.cy+ci.r*Math.sin(a)]),lp=[rp[0]+20,rp[1]-20],tx='Ø'+fmtN(2*ci.r);
+   const O=toS([0,0]),Cc=toS([ci.cx,ci.cy]);
+   if(Math.abs(ci.cx)>1e-6&&Math.abs(Cc[0]-O[0])>30)g+=`<line x1="${O[0]}" y1="${Cc[1]}" x2="${Cc[0]}" y2="${Cc[1]}" stroke="${C}" stroke-dasharray="4 3" marker-start="url(#da)" marker-end="url(#da)"/>`+dimText((O[0]+Cc[0])/2,Cc[1]-9,fmtN(Math.abs(ci.cx)),0,'middle');
+   if(Math.abs(ci.cy)>1e-6&&Math.abs(Cc[1]-O[1])>30)g+=`<line x1="${Cc[0]}" y1="${O[1]}" x2="${Cc[0]}" y2="${Cc[1]}" stroke="${C}" stroke-dasharray="4 3" marker-start="url(#da)" marker-end="url(#da)"/>`+dimText(Cc[0]-9,(O[1]+Cc[1])/2,fmtN(Math.abs(ci.cy)),-90,'middle');
+   g+=`<line x1="${rp[0]}" y1="${rp[1]}" x2="${lp[0]}" y2="${lp[1]}" stroke="${C}" marker-start="url(#da)"/><line x1="${lp[0]}" y1="${lp[1]}" x2="${lp[0]+tx.length*7.5+6}" y2="${lp[1]}" stroke="${C}"/>`+dimText(lp[0]+3,lp[1]-9,tx,0,'start');return}
+  let cx=0,cy=0;for(const[x,y]of l){cx+=x;cy+=y}cx/=l.length;cy/=l.length;const Cs=toS([cx,cy]);
+  const n=SK.open?l.length-1:l.length;
+  for(let i=0;i<n;i++){const a=l[i],b=l[(i+1)%l.length],A=toS(a),B=toS(b),dx=B[0]-A[0],dy=B[1]-A[1],L=Math.hypot(dx,dy);if(L<34)continue;
+   let nx=dy/L,ny=-dx/L;const M=[(A[0]+B[0])/2,(A[1]+B[1])/2];if(!SK.open&&(M[0]-Cs[0])*nx+(M[1]-Cs[1])*ny<0){nx=-nx;ny=-ny}
+   const o=18,a2=[A[0]+nx*o,A[1]+ny*o],b2=[B[0]+nx*o,B[1]+ny*o];let ang=Math.atan2(dy,dx)*180/Math.PI;if(ang>90)ang-=180;if(ang<=-90)ang+=180;
+   g+=`<path d="M${A[0]+nx*4} ${A[1]+ny*4}L${a2[0]+nx*4} ${a2[1]+ny*4}M${B[0]+nx*4} ${B[1]+ny*4}L${b2[0]+nx*4} ${b2[1]+ny*4}" stroke="${C}" stroke-opacity=".45"/><line x1="${a2[0]}" y1="${a2[1]}" x2="${b2[0]}" y2="${b2[1]}" stroke="${C}" marker-start="url(#da)" marker-end="url(#da)"/>`
+    +dimText((a2[0]+b2[0])/2+nx*9,(a2[1]+b2[1])/2+ny*9,fmtN(Math.hypot(b[0]-a[0],b[1]-a[1])),ang,'middle')}});
+ return g}
+let dimT=null;
+function closeDim(){dimT=null;const b=$('#dimbox');if(b)b.hidden=true}
+function dimPick(px,py){const W=toW(px,py),tol=8/SK.s;
+ for(let li=0;li<SK.loops.length;li++){const ci=circInfo(SK.loops[li]);if(ci&&Math.hypot(W[0]-ci.cx,W[1]-ci.cy)<=ci.r+tol){SK.active=li;skDraw();return openDim({kind:'circ',li},px,py)}}
+ for(let li=0;li<SK.loops.length;li++){const i=SK.loops[li].findIndex(q=>{const[x,y]=toS(q);return Math.hypot(x-px,y-py)<9});if(i>=0){SK.active=li;skDraw();return openDim({kind:'pt',li,i},px,py)}}
+ for(let li=0;li<SK.loops.length;li++){const l=SK.loops[li],n=SK.open?l.length-1:l.length;
+  for(let i=0;i<n;i++){const a=toS(l[i]),b=toS(l[(i+1)%l.length]),dx=b[0]-a[0],dy=b[1]-a[1],l2=dx*dx+dy*dy;if(!l2)continue;
+   const t=Math.max(0,Math.min(1,((px-a[0])*dx+(py-a[1])*dy)/l2));if(Math.hypot(a[0]+dx*t-px,a[1]+dy*t-py)<8){SK.active=li;skDraw();return openDim(isRect(l)?{kind:'rect',li}:{kind:'seg',li,i},px,py)}}}
+ closeDim();toast('Haz clic sobre una línea, un círculo o un punto')}
+function openDim(t,px,py){dimT=t;const l=SK.loops[t.li];let f;
+ if(t.kind==='circ'){const c=circInfo(l);f=[['d','Diámetro Ø',2*c.r],['cx','Centro X',c.cx],['cy','Centro Y',c.cy]]}
+ else if(t.kind==='rect'){const b=bbox(l);f=[['w','Ancho',b.x1-b.x0],['h','Alto',b.y1-b.y0],['cx','Centro X',(b.x0+b.x1)/2],['cy','Centro Y',(b.y0+b.y1)/2]]}
+ else if(t.kind==='seg'){const a=l[t.i],b=l[(t.i+1)%l.length];f=[['L','Longitud',Math.hypot(b[0]-a[0],b[1]-a[1])]]}
+ else f=[['x','X',l[t.i][0]],['y','Y',l[t.i][1]]];
+ const box=$('#dimbox');box.innerHTML=f.map(([k,lab,v])=>`<label class="f">${lab}<input type="number" step="0.5" data-dk="${k}" value="${r3(v)}"></label>`).join('')+'<button class="btn pri" id="dimok">Aplicar</button><button class="btn" id="dimx" title="Cerrar">×</button>';
+ box.hidden=false;const W=$('#svgw').clientWidth,H=$('#svgw').clientHeight;
+ box.style.left=Math.max(6,Math.min(px+14,W-box.offsetWidth-6))+'px';box.style.top=Math.max(6,Math.min(py+14,H-box.offsetHeight-6))+'px';
+ const i=box.querySelector('input');i.focus();i.select()}
+function setSegLen(l,i,L){const a=l[i],b=l[(i+1)%l.length],dx=b[0]-a[0],dy=b[1]-a[1],cur=Math.hypot(dx,dy),e=1e-6;if(!cur)return;
+ if(Math.abs(dy)<e){const d=(L-cur)*Math.sign(dx),bx=b[0];for(const q of l)if(Math.abs(q[0]-bx)<e)q[0]=r3(q[0]+d)}
+ else if(Math.abs(dx)<e){const d=(L-cur)*Math.sign(dy),by=b[1];for(const q of l)if(Math.abs(q[1]-by)<e)q[1]=r3(q[1]+d)}
+ else{b[0]=r3(a[0]+dx/cur*L);b[1]=r3(a[1]+dy/cur*L)}}
+function applyDim(){const t=dimT;if(!t||!SK)return;const l=SK.loops[t.li];const v={};
+ for(const i of $$('#dimbox input'))v[i.dataset.dk]=+i.value;if(Object.values(v).some(x=>!Number.isFinite(x)))return toast('Medida no válida');
+ if(t.kind==='circ'){if(v.d<=0)return toast('El diámetro debe ser mayor que 0');const c=circInfo(l),k=v.d/2/c.r;SK.loops[t.li]=l.map(([x,y])=>[r3(v.cx+(x-c.cx)*k),r3(v.cy+(y-c.cy)*k)])}
+ else if(t.kind==='rect'){if(v.w<=0||v.h<=0)return toast('Ancho y alto deben ser mayores que 0');const b=bbox(l),ox=(b.x0+b.x1)/2,oy=(b.y0+b.y1)/2,sx=v.w/(b.x1-b.x0),sy=v.h/(b.y1-b.y0);
+  SK.loops[t.li]=l.map(([x,y])=>[r3(v.cx+(x-ox)*sx),r3(v.cy+(y-oy)*sy)])}
+ else if(t.kind==='seg'){if(v.L<=0)return toast('La longitud debe ser mayor que 0');setSegLen(l,t.i,v.L)}
+ else l[t.i]=[r3(v.x),r3(v.y)];
+ if(SK.axis)for(const q of SK.loops[t.li])q[0]=Math.max(0,q[0]);
+ closeDim();skDraw()}
+$('#dimbox').addEventListener('click',e=>{if(e.target.id==='dimok')applyDim();if(e.target.id==='dimx')closeDim()});
+$('#dimbox').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applyDim()}if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeDim()}});
+$('#dimbox').addEventListener('pointerdown',e=>e.stopPropagation());
 $('#skok').onclick=()=>{const o=findO(SK.id);if(!o)return $('#sk').close();
  const loops=SK.loops.filter((l,i)=>l.length>=(SK.open?2:3)||i===0);if(loops[0].length<(SK.open?2:3))return toast('El contorno necesita más puntos');
  if(!SK.open&&Math.abs(area(loops[0]))<1e-6)return toast('El contorno no tiene área');

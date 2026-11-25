@@ -10,7 +10,7 @@ CAD 3D en el navegador (sólidos + operaciones booleanas) que se usa **a la vez*
 
 - **Chat con Claude** dentro de la app: los mensajes llegan a la sesión de Claude Code del proyecto, que modifica el modelo y responde en el mismo panel. También hay un «Asistente rápido» que responde al momento dentro de la página.
 - Sólidos: caja (con redondeo y vaciado), cilindro (con vaciado), prisma hexagonal, cono/tronco, esfera, toro.
-- **Croquis** (botón en la barra izquierda): eliges plano XY, XZ o YZ, dibujas con Línea, Rectángulo o Círculo (las formas interiores son agujeros) y terminas con Extruir, Extruir corte, Revolución, Barrido o Nervio. Operaciones con croquis:
+- **Croquis** (botón en la barra izquierda): eliges plano XY, XZ o YZ, dibujas con Línea, Rectángulo o Círculo (las formas interiores son agujeros), **acotas** con la herramienta Cota (longitudes, ancho/alto, diámetro y posición exactos; las cotas se muestran en el croquis) y terminas con Extruir, Extruir corte, Revolución, Barrido o Nervio. Operaciones con croquis:
   - **Extrusión** (con chaflán/redondeo de aristas, vaciado, simétrica; plano XY, XZ o YZ)
   - **Revolución** (ángulo parcial o completo)
   - **Barrido** de un perfil por una trayectoria 3D (suave o poligonal)
