@@ -169,8 +169,10 @@ kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:
   <button class="tool" data-add="cone" title="Cono"><svg viewBox="0 0 24 24"><path d="M12 3L5 18M12 3l7 15"/><ellipse cx="12" cy="18" rx="7" ry="2.5"/></svg>Cono</button>
   <button class="tool" data-add="torus" title="Toro"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="5"/><ellipse cx="12" cy="11.5" rx="4" ry="1.6"/></svg>Toro</button>
   <button class="tool" data-add="hex" title="Prisma hexagonal"><svg viewBox="0 0 24 24"><path d="M7 4h10l4 8-4 8H7l-4-8z"/></svg>Hexágono</button>
+  <hr><small>Croquis</small>
+  <button class="tool" id="sketchnew" title="Nuevo croquis: elige un plano, dibuja y luego extruye, revoluciona o corta"><svg viewBox="0 0 24 24"><path d="M3 21l3.5-1 11-11-2.5-2.5-11 11zM14 6.5l2.5 2.5M3 3h7M3 3v7" /></svg>Croquis</button>
   <hr><small>Operaciones</small>
-  <button class="tool" data-add="extrude" title="Extrusión de un boceto"><svg viewBox="0 0 24 24"><path d="M4 16l6-3 10 3-6 3zM4 16V8l6-3 10 3v8M10 5v8M14 11v8"/></svg>Extruir</button>
+  <button class="tool" data-add="extrude" title="Extrusión de un croquis"><svg viewBox="0 0 24 24"><path d="M4 16l6-3 10 3-6 3zM4 16V8l6-3 10 3v8M10 5v8M14 11v8"/></svg>Extruir</button>
   <button class="tool" data-add="revolve" title="Revolución de un perfil alrededor de un eje"><svg viewBox="0 0 24 24"><path d="M12 2v20" stroke-dasharray="2 2"/><path d="M12 4h5l-2 6 3 8h-6"/><path d="M5 9a7 3 0 0 0 0 0" /><ellipse cx="12" cy="18" rx="6" ry="2"/></svg>Revolución</button>
   <button class="tool" data-add="sweep" title="Barrido de un perfil por una trayectoria"><svg viewBox="0 0 24 24"><path d="M4 19c3 0 3-12 8-12s5 8 8 8"/><circle cx="4" cy="19" r="2.2"/><circle cx="20" cy="15" r="2.2"/></svg>Barrido</button>
   <button class="tool" data-add="loft" title="Recubrir entre dos perfiles"><svg viewBox="0 0 24 24"><rect x="5" y="15" width="14" height="5"/><ellipse cx="12" cy="5" rx="4" ry="1.6"/><path d="M5 15l3-10M19 15l-3-10"/></svg>Recubrir</button>
@@ -198,7 +200,7 @@ kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:
    <section class="help"><h2>Atajos</h2>
     Clic para seleccionar · arrastra para orbitar · rueda para zoom · botón derecho para desplazar.<br>
     <kbd>W</kbd> mover <kbd>E</kbd> rotar <kbd>R</kbd> escalar <kbd>F</kbd> encuadrar <kbd>Supr</kbd> borrar <kbd>Ctrl</kbd>+<kbd>D</kbd> duplicar <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer.<br>
-    mm, Z hacia arriba. «Hueco» resta la pieza a todo lo anterior; «Intersección» deja solo lo común. Extrusión, revolución, barrido, recubrir y nervio se dibujan con un boceto 2D.
+    mm, Z hacia arriba. «Hueco» resta la pieza a todo lo anterior; «Intersección» deja solo lo común. Extrusión, revolución, barrido, recubrir y nervio se dibujan con un croquis 2D.
    </section>
   </div>
   <div class="pane" id="chatpane" hidden>
@@ -227,7 +229,11 @@ kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:
  <div class="row"><button class="btn" id="jcopy">Copiar</button><button class="btn" id="japply">Aplicar</button><span class="sp"></span><button class="btn" id="jclose">Cerrar</button></div>
 </dialog>
 <dialog id="sk">
- <div class="row" style="margin:0 0 10px"><h2 style="margin:0;font-size:17px" id="sktitle">Boceto</h2><span class="sp"></span><button class="btn" id="skfit">Encuadrar</button><button class="btn" id="skcancel">Cancelar</button><button class="btn pri" id="skok">Aceptar</button></div>
+ <div class="row" style="margin:0 0 10px"><h2 style="margin:0;font-size:17px" id="sktitle">Croquis</h2>
+  <div class="seg" id="sktools"><button data-t="pts" class="on" title="Clic para añadir puntos de una polilínea">Línea</button><button data-t="rect" title="Arrastra de esquina a esquina">Rectángulo</button><button data-t="circ" title="Arrastra desde el centro">Círculo</button></div>
+  <span class="sp"></span><button class="btn" id="skfit">Encuadrar</button><button class="btn" id="skcancel">Cancelar</button><button class="btn pri" id="skok">Aceptar</button></div>
+ <div class="row" id="sknew" hidden style="margin:0 0 10px"><span class="help">Plano:</span><div class="seg" id="skplane"><button data-pl="XY" class="on">XY · Planta</button><button data-pl="XZ">XZ · Alzado</button><button data-pl="YZ">YZ · Perfil</button></div>
+  <span class="sp"></span><span class="help">Terminar con:</span><button class="btn pri" data-mk="extrude">Extruir</button><button class="btn" data-mk="cut">Extruir corte</button><button class="btn" data-mk="revolve">Revolución</button><button class="btn" data-mk="sweep">Barrido</button><button class="btn" data-mk="rib">Nervio</button></div>
  <div class="skw">
   <div id="svgw"><svg id="svg"></svg><div id="skinfo"></div></div>
   <div>
@@ -577,7 +583,7 @@ function add(type){begin();const T=TYPES[type],p={...T.d},df=DEF[type]?.()||{};
  const z=T.sk?0:type==='sphere'||type==='torus'?h:h/2;
  const o={id:uid(),name:T.n+' '+n,type,op:'add',p,pos:[0,0,z],rot:df.rot||[0,0,0],color:PALETTE[model.objects.length%PALETTE.length],hidden:false};
  if(df.sk)o.sk=df.sk;if(df.sk2)o.sk2=df.sk2;if(df.path)o.path=df.path;
- model.objects.push(o);sel=o.id;rebuild();commit();if(T.sk)toast('Doble clic en la pieza o «Editar boceto» para cambiar el perfil')}
+ model.objects.push(o);sel=o.id;rebuild();commit();if(T.sk)toast('Doble clic en la pieza o «Editar croquis» para cambiar el perfil')}
 $$('[data-add]').forEach(b=>b.onclick=()=>add(b.dataset.add));
 function dup(){const o=findO(sel);if(!o)return;begin();const c=structuredClone(o);c.id=uid();c.name=o.name+' copia';c.pos[0]=r3(c.pos[0]+10);
  model.objects.splice(model.objects.indexOf(o)+1,0,c);sel=c.id;rebuild();commit()}
@@ -631,12 +637,12 @@ function props(){
  el.innerHTML=`<h2>Propiedades · ${T.n}</h2>
   <div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)"><label class="f">Nombre<input data-k="name" value="${esc(o.name)}"></label><label class="f">Color<input type="color" data-k="color" value="${esc(o.color)}"></label></div>
   <div class="ttl">Operación</div><div class="seg" id="opseg">${Object.entries(OPS).map(([k,v])=>`<button data-op="${k}" class="${o.op===k?'on':''}">${v}</button>`).join('')}</div>
-  ${T.sk?`<div class="ttl">Boceto</div><div class="row" style="margin:0"><button class="btn" data-sk="sk">Editar ${T.sk2?'perfil inferior':'boceto'}</button>${T.sk2?'<button class="btn" data-sk="sk2">Editar perfil superior</button>':''}</div>`:''}
-  ${T.plane?`<div class="ttl">Plano del boceto</div><div class="seg">${Object.keys(PLANES).map(k=>`<button data-plane="${k}" class="${JSON.stringify(PLANES[k])===JSON.stringify(o.rot)?'on':''}">${k}</button>`).join('')}</div>`:''}
+  ${T.sk?`<div class="ttl">Croquis</div><div class="row" style="margin:0"><button class="btn" data-sk="sk">Editar ${T.sk2?'perfil inferior':'croquis'}</button>${T.sk2?'<button class="btn" data-sk="sk2">Editar perfil superior</button>':''}</div>`:''}
+  ${T.plane?`<div class="ttl">Plano del croquis</div><div class="seg">${Object.keys(PLANES).map(k=>`<button data-plane="${k}" class="${JSON.stringify(PLANES[k])===JSON.stringify(o.rot)?'on':''}">${k}</button>`).join('')}</div>`:''}
   <div class="ttl">Parámetros (mm)</div><div class="grid">${T.p.filter(q=>q[2]!=='b').map(([k,l,kind])=>f('p.'+k,l,o.p[k],kind==='i'?1:k==='a'?15:.5)).join('')}</div>
   ${T.p.some(q=>q[2]==='b')?`<div class="row">${T.p.filter(q=>q[2]==='b').map(([k,l])=>ck('p.'+k,l,o.p[k])).join('')}</div>`:''}
   ${T.path?`<div class="ttl">Trayectoria (x, y, z por línea)</div><textarea class="code" rows="5" id="pathtxt" spellcheck="false">${esc(o.path.map(q=>q.join(', ')).join('\n'))}</textarea><div class="row"><button class="btn" id="pathok">Aplicar trayectoria</button></div>`:''}
-  <div class="ttl">${T.sk?'Origen del boceto':'Posición del centro'} (mm)</div><div class="grid">${['X','Y','Z'].map((a,i)=>f('pos.'+i,a,o.pos[i])).join('')}</div>
+  <div class="ttl">${T.sk?'Origen del croquis':'Posición del centro'} (mm)</div><div class="grid">${['X','Y','Z'].map((a,i)=>f('pos.'+i,a,o.pos[i])).join('')}</div>
   <div class="ttl">Rotación (grados)</div><div class="grid">${['X','Y','Z'].map((a,i)=>f('rot.'+i,a,o.rot[i],15)).join('')}</div>
   <div class="ttl">Patrón</div>
   <select class="sel2" id="pattype"><option value="none">Sin patrón</option><option value="lin" ${pt.t==='lin'?'selected':''}>Lineal</option><option value="circ" ${pt.t==='circ'?'selected':''}>Circular</option></select>
@@ -671,16 +677,44 @@ const svg=$('#svg');let SK=null;
 const PRE={rect:['Rectángulo','A ancho · B alto',()=>rect(+$('#pa').value,+$('#pb').value)],circ:['Círculo','A radio · lados',()=>circ(+$('#pa').value,Math.max(3,+$('#pn').value|0))],
  slot:['Ranura','A largo · B ancho',()=>slot(+$('#pa').value,Math.min(+$('#pb').value,+$('#pa').value))],poly:['Polígono','A radio · lados',()=>circ(+$('#pa').value,Math.max(3,+$('#pn').value|0))],
  l:['Perfil L','A ancho · B alto',()=>lprof(+$('#pa').value,+$('#pb').value)],line:['Línea','A largo (para nervios)',()=>[[0,0],[+$('#pa').value,0]]]};
+const AXL={XY:['X','Y'],XZ:['X','Z'],YZ:['Y','Z']};
+function planeOf(rot){return Object.keys(PLANES).find(k=>JSON.stringify(PLANES[k])===JSON.stringify(rot))}
+function setTool(t){SK.tool=t;$$('#sktools button').forEach(b=>b.classList.toggle('on',b.dataset.t===t))}
+function newSketch(){SK={new:true,plane:'XY',loops:[[]],active:0,open:false,axis:false,holes:true,drag:-1,s:4,ox:0,oy:0,pan:null,shape:null,lab:AXL.XY};
+ $('#sktitle').textContent='Croquis nuevo';$('#sknew').hidden=false;$('#skok').hidden=true;$('#sktools').hidden=false;setTool('rect');
+ $$('#skplane button').forEach(b=>b.classList.toggle('on',b.dataset.pl==='XY'));
+ $('#skhelp').textContent='Elige el plano, dibuja el contorno (rectángulo, círculo o línea punto a punto) y termina con una operación. Las formas cerradas que dibujes dentro del contorno serán agujeros. Para revolución, dibuja a la derecha del eje vertical: gira alrededor de él. Para nervio, dibuja una línea con «Línea». Doble clic borra un punto; rueda: zoom; Mayús+arrastrar: desplazar.';
+ $('#addhole').hidden=false;$('#delloop').hidden=false;
+ $('#presets').innerHTML=Object.entries(PRE).filter(([k])=>k!=='line').map(([k,[n,h]])=>`<button class="chip" data-pre="${k}" title="${h}">${n}</button>`).join('');
+ $('#sk').showModal();requestAnimationFrame(()=>{skFit();skDraw()})}
+$('#sketchnew').onclick=newSketch;
+$('#skplane').onclick=e=>{const pl=e.target.dataset.pl;if(!pl)return;SK.plane=pl;SK.lab=AXL[pl];$$('#skplane button').forEach(b=>b.classList.toggle('on',b===e.target));skDraw()};
+$('#sktools').onclick=e=>{const t=e.target.dataset.t;if(t)setTool(t)};
+$('#sknew').addEventListener('click',e=>{const k=e.target.dataset.mk;if(k)finishNew(k)});
+function finishNew(kind){const closed=SK.loops.filter(l=>l.length>=3).map(l=>l.map(p=>p.map(r3)));
+ let loops;
+ if(kind==='rib'){const L=SK.loops[0];if(L.length<2)return toast('Para un nervio dibuja una línea con «Línea» (2 o más puntos)');loops=[L.map(p=>p.map(r3))]}
+ else{if(!closed.length||Math.abs(area(closed[0]))<1e-6)return toast('Dibuja un contorno cerrado (3 puntos o más)');
+  if(kind==='revolve'&&closed[0].some(p=>p[0]<0))return toast('Para revolución dibuja a la derecha del eje vertical (x ≥ 0)');
+  loops=kind==='revolve'?[closed[0]]:closed}
+ const type=kind==='cut'?'extrude':kind,T=TYPES[type],p={...T.d};if(kind==='cut'){p.d=20;p.sym=1}
+ const n=model.objects.filter(o=>o.type===type&&(kind==='cut')===(o.op==='sub')).length+1;
+ const o={id:uid(),name:(kind==='cut'?'Corte':T.n)+' '+n,type,op:kind==='cut'?'sub':'add',p,pos:[0,0,0],rot:type==='revolve'||type==='sweep'?[0,0,0]:[...PLANES[SK.plane]],color:PALETTE[model.objects.length%PALETTE.length],hidden:false,sk:{loops}};
+ if(type==='sweep')o.path=DEF.sweep().path;
+ begin();model.objects.push(o);sel=o.id;rebuild();commit();$('#sk').close();
+ toast(kind==='cut'?'Corte creado: ajusta la profundidad en Propiedades':`${T.n} creada: ajusta los parámetros en Propiedades`)}
 function openSketch(id,key){const o=findO(id),T=TYPES[o.type];
- SK={id,key,loops:structuredClone(o[key].loops),active:0,open:!!T.open,axis:!!T.axis,holes:!!T.holes&&key==='sk',drag:-1,s:4,ox:0,oy:0,pan:null};
- $('#sktitle').textContent=`Boceto · ${o.name}${key==='sk2'?' · perfil superior':''}`;
+ SK={id,key,loops:structuredClone(o[key].loops),active:0,open:!!T.open,axis:!!T.axis,holes:!!T.holes&&key==='sk',drag:-1,s:4,ox:0,oy:0,pan:null,shape:null,
+  lab:T.axis?['Radio','Altura']:T.plane?AXL[planeOf(o.rot)]||['x','y']:['x','y']};
+ $('#sknew').hidden=true;$('#skok').hidden=false;$('#sktools').hidden=SK.open;setTool('pts');
+ $('#sktitle').textContent=`Croquis · ${o.name}${key==='sk2'?' · perfil superior':''}`;
  $('#skhelp').textContent=(T.axis?'Revolución: x = radio (≥ 0), y = altura. El eje es la línea vertical x = 0. ':'')+(T.open?'Nervio: dibuja una línea abierta; el nervio rellena hacia el lado marcado hasta tocar el material. ':'')+'Clic en vacío añade un punto al final; clic sobre un tramo inserta; arrastra para mover; doble clic borra un punto. Rueda: zoom. Mayús+arrastrar o botón derecho: desplazar.';
  $('#addhole').hidden=!SK.holes;$('#delloop').hidden=!SK.holes;
  $('#presets').innerHTML=Object.entries(PRE).filter(([k])=>SK.open?k==='line':k!=='line').map(([k,[n,h]])=>`<button class="chip" data-pre="${k}" title="${h}">${n}</button>`).join('');
  $('#sk').showModal();requestAnimationFrame(()=>{skFit();skDraw()})}
 function skFit(){const W=svg.clientWidth,H=svg.clientHeight;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
  for(const l of SK.loops)for(const[x,y]of l){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y)}
- if(SK.axis)x0=Math.min(x0,0);if(x0>x1){x0=-20;x1=20;y0=-20;y1=20}
+ if(SK.axis)x0=Math.min(x0,0);if(x0>x1){x0=-50;x1=50;y0=-40;y1=40}
  const w=Math.max(x1-x0,10),h=Math.max(y1-y0,10);SK.s=Math.min(W/(w*1.4),H/(h*1.4));SK.ox=W/2-(x0+x1)/2*SK.s;SK.oy=H/2+(y0+y1)/2*SK.s}
 const toS=([x,y])=>[SK.ox+x*SK.s,SK.oy-y*SK.s],toW=(px,py)=>[(px-SK.ox)/SK.s,(SK.oy-py)/SK.s];
 const sstep=()=>+$('#skstep').value,snapP=([x,y])=>{const s=sstep();let p=[r3(Math.round(x/s)*s),r3(Math.round(y/s)*s)];if(SK.axis)p[0]=Math.max(0,p[0]);return p};
@@ -696,6 +730,10 @@ function skDraw(){if(!SK)return;const W=svg.clientWidth,H=svg.clientHeight;let g
    :`<polygon points="${pts}" fill="${li===0?'var(--pr)':'var(--vp)'}" fill-opacity="${li===0?.12:1}" stroke="${act?'var(--cm)':'var(--pr)'}" stroke-width="${act?2.5:1.5}"/>`});
  if(SK.open&&SK.loops[0].length>1){const o=findO(SK.id),sg=o.p.flip?-1:1,L=SK.loops[0];for(let i=0;i<L.length-1;i++){const[a,b]=[L[i],L[i+1]],dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy)||1;
   const m=toS([(a[0]+b[0])/2,(a[1]+b[1])/2]),n=[-dy/l*sg,dx/l*sg];g+=`<line x1="${m[0]}" y1="${m[1]}" x2="${m[0]+n[0]*28}" y2="${m[1]-n[1]*28}" stroke="var(--cm)" stroke-width="2" marker-end="url(#ar)"/>`}}
+ if(SK.lab){g+=`<text x="${W-8}" y="${SK.oy-6}" text-anchor="end" font-size="13" font-weight="600" fill="#c1121f">${SK.lab[0]}</text><text x="${SK.ox+6}" y="16" font-size="13" font-weight="600" fill="#2f8f4e">${SK.lab[1]}</text>`}
+ if(SK.shape){const L=shapeLoop(SK.shape);if(L){const pts=L.map(toS).map(q=>q.join(',')).join(' ');g+=`<polygon points="${pts}" fill="var(--cm)" fill-opacity=".08" stroke="var(--cm)" stroke-width="2" stroke-dasharray="6 4"/>`;
+  const[a,b]=[SK.shape.a,SK.shape.b],lab=SK.shape.t==='rect'?`${r3(Math.abs(b[0]-a[0]))} × ${r3(Math.abs(b[1]-a[1]))} mm`:`R ${r3(Math.hypot(b[0]-a[0],b[1]-a[1]))} mm`,q=toS(b);
+  g+=`<text x="${q[0]+10}" y="${q[1]-10}" font-size="13" font-weight="600" fill="var(--cm)">${lab}</text>`}}
  (SK.loops[SK.active]||[]).forEach((p,i)=>{const[x,y]=toS(p);g+=`<circle cx="${x}" cy="${y}" r="${i===0?6:5}" fill="${i===0?'var(--cm)':'var(--panel)'}" stroke="var(--cm)" stroke-width="2"/>`});
  svg.innerHTML=`<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#c1121f"/></marker></defs>`+g;
  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const[x,y]of SK.loops[0]||[]){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y)}
@@ -705,6 +743,7 @@ function skDraw(){if(!SK)return;const W=svg.clientWidth,H=svg.clientHeight;let g
 const evP=e=>{const r=svg.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
 svg.addEventListener('pointerdown',e=>{if(!SK)return;const[px,py]=evP(e);svg.setPointerCapture(e.pointerId);
  if(e.button!==0||e.shiftKey){SK.pan=[px,py,SK.ox,SK.oy];return}
+ if(SK.tool==='rect'||SK.tool==='circ'){const a=snapP(toW(px,py));SK.shape={t:SK.tool,a,b:a};return}
  const L=SK.loops[SK.active];if(!L)return;
  const i=L.findIndex(p=>{const[x,y]=toS(p);return Math.hypot(x-px,y-py)<9});if(i>=0){SK.drag=i;return}
  const n=SK.open?L.length-1:L.length;
@@ -713,8 +752,16 @@ svg.addEventListener('pointerdown',e=>{if(!SK)return;const[px,py]=evP(e);svg.set
  L.push(snapP(toW(px,py)));SK.drag=L.length-1;skDraw()});
 svg.addEventListener('pointermove',e=>{if(!SK)return;const[px,py]=evP(e);
  if(SK.pan){SK.ox=SK.pan[2]+px-SK.pan[0];SK.oy=SK.pan[3]+py-SK.pan[1];return skDraw()}
+ if(SK.shape){SK.shape.b=snapP(toW(px,py));return skDraw()}
  if(SK.drag>=0){SK.loops[SK.active][SK.drag]=snapP(toW(px,py));skDraw()}});
-svg.addEventListener('pointerup',()=>{if(SK){SK.drag=-1;SK.pan=null}});
+function shapeLoop(sh){const[a,b]=[sh.a,sh.b];
+ if(sh.t==='rect'){if(Math.abs(b[0]-a[0])<1e-6||Math.abs(b[1]-a[1])<1e-6)return null;const x0=Math.min(a[0],b[0]),x1=Math.max(a[0],b[0]),y0=Math.min(a[1],b[1]),y1=Math.max(a[1],b[1]);return[[x0,y0],[x1,y0],[x1,y1],[x0,y1]]}
+ const r=Math.hypot(b[0]-a[0],b[1]-a[1]);if(r<1e-6)return null;return circ(r,Math.max(3,+$('#pn').value|0||48),a[0],a[1])}
+svg.addEventListener('pointerup',()=>{if(!SK)return;SK.drag=-1;SK.pan=null;
+ if(SK.shape){const L=shapeLoop(SK.shape);SK.shape=null;
+  if(L){if(SK.axis)for(const q of L)q[0]=Math.max(0,q[0]);
+   if((SK.loops[0]||[]).length<3){SK.loops[0]=L;SK.active=0}else if(SK.holes){SK.loops.push(L);SK.active=SK.loops.length-1}else SK.loops[0]=L}
+  skDraw()}});
 svg.addEventListener('contextmenu',e=>e.preventDefault());
 svg.addEventListener('dblclick',e=>{const[px,py]=evP(e),L=SK.loops[SK.active],min=SK.open?2:3;
  const i=L.findIndex(p=>{const[x,y]=toS(p);return Math.hypot(x-px,y-py)<9});if(i>=0&&L.length>min){L.splice(i,1);skDraw()}});
@@ -736,7 +783,7 @@ $('#sk').addEventListener('close',()=>{SK=null});
 $('#skok').onclick=()=>{const o=findO(SK.id);if(!o)return $('#sk').close();
  const loops=SK.loops.filter((l,i)=>l.length>=(SK.open?2:3)||i===0);if(loops[0].length<(SK.open?2:3))return toast('El contorno necesita más puntos');
  if(!SK.open&&Math.abs(area(loops[0]))<1e-6)return toast('El contorno no tiene área');
- begin();o[SK.key]={loops:loops.map(l=>l.map(p=>p.map(r3)))};syncMesh(o);rebuildResult();commit();$('#sk').close();toast('Boceto aplicado')};
+ begin();o[SK.key]={loops:loops.map(l=>l.map(p=>p.map(r3)))};syncMesh(o);rebuildResult();commit();$('#sk').close();toast('Croquis aplicado')};
 new ResizeObserver(()=>skDraw()).observe($('#svgw'));
 
 // ---------- reference images (como «Picture» de Rhino) ----------
@@ -909,7 +956,7 @@ Formato de pieza: {id, name, type, op:"add"|"sub"|"int", p:{...}, pos:[x,y,z], r
 Tipos y p: box{x,y,z,f redondeo,t vaciado,open} (pos = centro) · cylinder{r,h,n,t,open} (eje Z, pos = centro) · hex{r,h} · cone{r1,r2,h,n} · sphere{r} · torus{R,r} ·
 extrude{d,b chaflán,bs segmentos,t,open,sym} con sk:{loops:[[[x,y],...], agujeros...]} en el plano XY local; extruye hacia +Z local desde pos; rot [90,0,0] = plano XZ, [90,90,0] = plano YZ ·
 revolve{a ángulo,n} con sk.loops[0] = perfil [radio, altura], gira alrededor del eje Z local · sweep{steps,smooth} con sk (perfil) y path:[[x,y,z],...] ·
-loft{h,n} con sk (perfil inferior) y sk2 (superior) · rib{t espesor,d distancia máx,flip} con sk.loops[0] = línea abierta en el plano del boceto; rellena hacia el lado izquierdo de la línea (flip invierte) hasta el material anterior.
+loft{h,n} con sk (perfil inferior) y sk2 (superior) · rib{t espesor,d distancia máx,flip} con sk.loops[0] = línea abierta en el plano del croquis; rellena hacia el lado izquierdo de la línea (flip invierte) hasta el material anterior.
 Patrón: pat:{t:"lin",n,d:[dx,dy,dz]} o {t:"circ",n,a:360,ax:"z",c:[x,y,z]}. Espejo: mir:{x:true} refleja respecto al plano YZ del origen.`;
 const aiTools=[
  {name:'get_model',description:'Devuelve el modelo actual: nombre y lista completa de piezas en JSON.',execute:()=>({name:model.name,objects:model.objects})},

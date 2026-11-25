@@ -10,7 +10,7 @@ CAD 3D en el navegador (sólidos + operaciones booleanas) que se usa **a la vez*
 
 - **Chat con Claude** dentro de la app: los mensajes llegan a la sesión de Claude Code del proyecto, que modifica el modelo y responde en el mismo panel. También hay un «Asistente rápido» que responde al momento dentro de la página.
 - Sólidos: caja (con redondeo y vaciado), cilindro (con vaciado), prisma hexagonal, cono/tronco, esfera, toro.
-- Operaciones con boceto 2D (editor con rejilla, formas rápidas, agujeros, puntos por texto):
+- **Croquis** (botón en la barra izquierda): eliges plano XY, XZ o YZ, dibujas con Línea, Rectángulo o Círculo (las formas interiores son agujeros) y terminas con Extruir, Extruir corte, Revolución, Barrido o Nervio. Operaciones con croquis:
   - **Extrusión** (con chaflán/redondeo de aristas, vaciado, simétrica; plano XY, XZ o YZ)
   - **Revolución** (ángulo parcial o completo)
   - **Barrido** de un perfil por una trayectoria 3D (suave o poligonal)
@@ -54,7 +54,7 @@ Unidades en mm, eje Z hacia arriba. En los sólidos `pos` es el **centro**; en l
 | `loft`     | `h`, `n` + `sk` (perfil inferior) + `sk2` (superior) |
 | `rib`      | `t` (espesor), `d` (distancia máx.), `flip` + `sk` (línea abierta) |
 
-Los bocetos son `{"loops": [[[x,y],…], …]}`: el primer lazo es el contorno y los demás, agujeros. Se dibujan en el plano XY local de la pieza; `rot` lo orienta (`[90,0,0]` = plano XZ, `[90,90,0]` = plano YZ) y `pos` es su origen.
+Los croquis son `{"loops": [[[x,y],…], …]}`: el primer lazo es el contorno y los demás, agujeros. Se dibujan en el plano XY local de la pieza; `rot` lo orienta (`[90,0,0]` = plano XZ, `[90,90,0]` = plano YZ) y `pos` es su origen.
 
 Imágenes de calco a nivel de modelo: `"refs": [{"img": "<asset id>", "plane": "XZ", "w": 100, "pos": [0,0,50], "op": 0.6, "hidden": false}]` (`w` = ancho en mm, `pos` = centro).
 
