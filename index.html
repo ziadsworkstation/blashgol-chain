@@ -124,6 +124,16 @@ kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:
 .ref{border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:8px}
 .ref>img{width:100%;max-height:110px;object-fit:contain;background:var(--soft);border-radius:6px;margin-bottom:6px}
 #imgv{width:min(900px,94vw)}#imgv img{width:100%;max-height:70vh;object-fit:contain;background:var(--soft);border-radius:8px}
+.pjgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;max-height:62vh;overflow:auto;padding:2px}
+.pj{border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;background:var(--panel)}
+.pj.cur{border-color:var(--cm);box-shadow:0 0 0 1px var(--cm)}
+.pj .th{aspect-ratio:16/10;background:var(--vp);display:grid;place-items:center;color:var(--mute);font-size:12px}
+.pj .th img{width:100%;height:100%;object-fit:cover}
+.pj .bd{padding:8px 10px;display:flex;flex-direction:column;gap:6px;flex:1}
+.pj b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pj small{color:var(--mute);font-size:12px}
+.pj .row{margin:0;margin-top:auto}
+#pj{width:min(980px,96vw)}
 #chatpane.drop{outline:2px dashed var(--pr);outline-offset:-6px}
 @media (max-width:900px){
  body{overflow:auto}
@@ -145,6 +155,7 @@ kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:
   <input id="name" aria-label="Nombre del modelo" value="Modelo sin título">
   <span id="sync"><i></i><span>Cargando…</span></span>
   <span class="sp"></span>
+  <button class="btn" id="projbtn" title="Abrir, crear o duplicar proyectos"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Proyectos</button>
   <button class="btn" id="undo" title="Deshacer (Ctrl+Z)">↶ Deshacer</button>
   <button class="btn" id="redo" title="Rehacer (Ctrl+Y)">↷</button>
   <button class="btn" id="json">JSON</button>
@@ -204,6 +215,11 @@ kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:
 <div id="toast" role="status"></div>
 <input type="file" id="cfile" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
 <input type="file" id="reffile" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+<dialog id="pj">
+ <div class="row" style="margin:0 0 6px"><h2 style="margin:0;font-size:18px">Proyectos</h2><span class="sp"></span><button class="btn pri" id="pjnew">+ Nuevo proyecto</button><button class="btn" id="pjdup">Duplicar el actual</button><button class="btn" id="pjclose">Cerrar</button></div>
+ <p class="help" style="margin:0 0 10px">Cada cambio se guarda solo en el proyecto abierto. Cambia el nombre en la barra superior. Claude trabaja siempre sobre el proyecto que tengas abierto.</p>
+ <div id="pjlist" class="pjgrid"></div>
+</dialog>
 <dialog id="imgv"><img id="imgvi" alt="Imagen de referencia"><div class="row"><button class="btn pri" id="imgref">Usar como referencia en 3D</button><span class="sp"></span><button class="btn" id="imgclose">Cerrar</button></div></dialog>
 <dialog id="dlg"><h2 style="margin:0 0 8px;font-size:16px">Modelo en JSON</h2>
  <p class="help" style="margin:0 0 8px">Puedes copiarlo, editarlo a mano o pegar otro modelo y aplicarlo.</p>
@@ -777,16 +793,58 @@ function status(cls,t){$('#sync').className=cls;$('#sync span').textContent=t}
 function save(){dirty=true;clearTimeout(saveTimer);saveTimer=setTimeout(flush,350)}
 async function flush(){
  const body={name:model.name,units:'mm',objects:model.objects,refs:model.refs,by:lastBy,at:new Date().toISOString()};
+ if(ref){const th=thumb();if(th)body.thumb=th}
  if(!ref){try{localStorage.setItem('blashgol-cad',JSON.stringify(body))}catch{}dirty=false;return}
  if(writing){again=true;return}writing=true;status('busy','Guardando…');
  try{await ref.set(JSON.parse(JSON.stringify(body)));if(!again)dirty=false;status('on','Guardado · Claude lo ve')}
  catch(e){dirty=false;status('err',e?.code==='invalid_argument'?'Solo lectura':e?.code==='quota_exceeded'?'Modelo demasiado grande':'Error al guardar')}
  writing=false;if(again){again=false;flush()}}
-function applyRemote(d){const m=clean(d);const s=JSON.stringify({name:m.name,objects:m.objects,refs:m.refs});
+function applyRemote(d,initial){const m=clean(d);const s=JSON.stringify({name:m.name,objects:m.objects,refs:m.refs});
+ if(initial){undoS=[];redoS=[];before=null;sel=null;model.name=m.name;model.objects=m.objects;model.refs=m.refs;$('#props').dataset.for='';rebuild();ui();fit(VIEWS.iso);return}
  if(s===snap())return;if(dirty||tc.dragging||before!==null||$('#sk').open)return;
  const first=!model.objects.length;undoS.push(snap());redoS.length=0;model.name=m.name;model.objects=m.objects;model.refs=m.refs;
  if(!findO(sel))sel=null;$('#props').dataset.for='';rebuild();ui();if(first)fit(VIEWS.iso);
  if(d.by==='claude')toast('Claude actualizó el modelo (Ctrl+Z para deshacer)')}
+
+// ---------- projects ----------
+let DB=null,projId=null,unsubModel=null,stateRef=null,projects=[],syncT=0;
+const PID=/^p[a-z0-9]{6,20}$/;
+const newPid=()=>'p'+Math.random().toString(36).slice(2,10);
+function thumb(){try{const src=renderer.domElement;if(!src.width)return null;const hp=tc.getHelper();const hv=hp.visible;hp.visible=false;renderer.render(scene,cam);hp.visible=hv;const c=document.createElement('canvas');c.width=240;c.height=150;
+ const x=c.getContext('2d'),k=Math.max(c.width/src.width,c.height/src.height),w=src.width*k,h=src.height*k;x.drawImage(src,(c.width-w)/2,(c.height-h)/2,w,h);return c.toDataURL('image/jpeg',.7)}catch{return null}}
+async function flushNow(){clearTimeout(saveTimer);if(dirty)await flush();for(let i=0;i<50&&writing;i++)await new Promise(r=>setTimeout(r,100))}
+async function openProject(pid,announce=true){
+ if(!DB||!PID.test(pid)||pid===projId)return;
+ await flushNow();unsubModel?.();projId=pid;ref=DB.doc('projects/'+pid);status('busy','Abriendo proyecto…');
+ let first=true;clearTimeout(syncT);syncT=setTimeout(()=>status('err','Sin conexión con la base de datos'),10000);
+ unsubModel=ref.onSnapshot(s=>{if(ref.path!=='projects/'+pid)return;if(!s.metadata.fromCache)clearTimeout(syncT);if(s.metadata.hasPendingWrites)return;
+  if(s.exists){applyRemote(s.data(),first);first=false}
+  if(!s.metadata.fromCache&&!writing)status('on','Sincronizado con Claude')},
+  e=>{clearTimeout(syncT);status('err',e.code==='revoked'?'Acceso retirado':'Sincronización detenida')});
+ if(announce&&stateRef)stateRef.set({current:pid,at:new Date().toISOString()}).catch(()=>{});
+ renderProjects()}
+async function createProject(data){const pid=newPid();
+ const body={name:'Proyecto sin título',units:'mm',objects:[],refs:[],...data,by:'usuario',at:new Date().toISOString()};
+ try{await DB.doc('projects/'+pid).set(JSON.parse(JSON.stringify(body)));await openProject(pid);return pid}
+ catch(e){toast(e?.code==='quota_exceeded'?'No caben más proyectos':'No se pudo crear el proyecto')}}
+const fmtDate=t=>{const d=new Date(t);return isNaN(d)?'':d.toLocaleDateString([], {day:'numeric',month:'short'})+' '+d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})};
+let confirmDel=null;
+function renderProjects(){const el=$('#pjlist');if(!el)return;
+ if(!DB){el.innerHTML='<p class="none">Los proyectos solo están disponibles en la versión publicada del artefacto.</p>';return}
+ const list=[...projects].sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+ el.innerHTML=list.map(p=>`<div class="pj ${p.id===projId?'cur':''}" data-p="${esc(p.id)}"><div class="th">${/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(p.thumb||'')?`<img src="${p.thumb}" alt="">`:'Sin vista previa'}</div>
+  <div class="bd"><b title="${esc(p.name)}">${esc(p.name)}</b><small>${p.n} pieza${p.n===1?'':'s'} · ${esc(fmtDate(p.at))}</small>
+  <div class="row">${p.id===projId?'<span class="tag" style="color:var(--cm);font-weight:600">Abierto</span>':`<button class="btn pri" data-open="1">Abrir</button>`}<span class="sp"></span>${p.id===projId?'':`<button class="btn" data-del="1">${confirmDel===p.id?'¿Borrar? Sí':'Borrar'}</button>`}</div></div></div>`).join('')||'<p class="none">Aún no hay proyectos.</p>'}
+$('#projbtn').onclick=()=>{confirmDel=null;renderProjects();$('#pj').showModal()};
+$('#pjclose').onclick=()=>$('#pj').close();
+$('#pjnew').onclick=async()=>{if(!DB)return toast('Solo en la versión publicada');$('#pj').close();
+ const n=projects.filter(p=>p.name.startsWith('Proyecto sin título')).length;await createProject({name:'Proyecto sin título'+(n?' '+(n+1):'')});toast('Proyecto nuevo creado')};
+$('#pjdup').onclick=async()=>{if(!DB)return toast('Solo en la versión publicada');$('#pj').close();
+ await createProject({name:model.name+' (copia)',objects:structuredClone(model.objects),refs:structuredClone(model.refs||[]),thumb:thumb()||undefined});toast('Copia creada y abierta')};
+$('#pjlist').onclick=async e=>{const card=e.target.closest('[data-p]');if(!card)return;const id=card.dataset.p;
+ if(e.target.dataset.open){$('#pj').close();await openProject(id);toast('Proyecto abierto')}
+ if(e.target.dataset.del){if(confirmDel!==id){confirmDel=id;return renderProjects()}
+  confirmDel=null;try{await DB.doc('projects/'+id).delete();toast('Proyecto borrado')}catch{toast('No se pudo borrar')}}};
 
 // ---------- chat ----------
 let chatRef=null,chat={msgs:[],thread:null},cmode='claude',comments=null,sample=null,aiCtl=null,seenN=0;
@@ -835,7 +893,7 @@ $('#csend').onclick=async()=>{let text=$('#cin').value.trim();if(!text&&!pending
  if(cmode==='claude')return sendToProject(text);return askAI(text)};
 async function sendToProject(text){
  if(!comments)return toast('El canal con Claude no está disponible aquí');
- const o=findO(sel),ctx=`[Chat Blashgol CAD${o?` · selección: ${o.name} (${o.id})`:''}]\n`;
+ const o=findO(sel),ctx=`[Chat Blashgol CAD · proyecto: ${model.name} (${projId||'local'})${o?` · selección: ${o.name} (${o.id})`:''}]\n`;
  $('#csend').disabled=true;
  try{let r;
   const ids=pending.filter(p=>p.id).map(p=>p.id);
@@ -892,11 +950,15 @@ drawGrid();ui();fit(VIEWS.iso);renderChat();
   C.use('assets').then(a=>{assets=a;refsPanel()}).catch(()=>{})}
  if(!db){try{const s=localStorage.getItem('blashgol-cad');if(s)window.cadAPI.load(JSON.parse(s));const c=localStorage.getItem('blashgol-chat');if(c){chat=JSON.parse(c);renderChat()}}catch{}
   status('','Modo local (sin sincronizar)');refreshCStat();return}
- ref=db.doc('cad/model');chatRef=db.doc('cad/chat');status('busy','Conectando…');
- const t=setTimeout(()=>status('err','Sin conexión con la base de datos'),10000);
- ref.onSnapshot(s=>{if(!s.metadata.fromCache)clearTimeout(t);if(s.metadata.hasPendingWrites)return;
-  if(s.exists)applyRemote(s.data());if(!s.metadata.fromCache&&!writing)status('on','Sincronizado con Claude')},
-  e=>{clearTimeout(t);status('err',e.code==='revoked'?'Acceso retirado':'Sincronización detenida')});
+ DB=db;chatRef=db.doc('cad/chat');stateRef=db.doc('cad/state');status('busy','Conectando…');
+ db.collection('projects').onSnapshot(q=>{projects=q.docs.map(d=>{const x=d.data()||{};return{id:d.id,name:String(x.name||'Sin nombre').slice(0,120),n:Array.isArray(x.objects)?x.objects.length:0,at:String(x.at||''),thumb:typeof x.thumb==='string'?x.thumb:''}}).filter(p=>PID.test(p.id));
+  renderProjects();if(projId&&!q.metadata.fromCache&&!projects.some(p=>p.id===projId)&&projects.length)openProject(projects.sort((a,b)=>String(b.at).localeCompare(String(a.at)))[0].id)},()=>{});
+ let booting=false;
+ stateRef.onSnapshot(async s=>{const cur=s.exists?String(s.data().current||''):'';
+  if(PID.test(cur)){if(cur!==projId){if(projId)toast('Se abrió otro proyecto');openProject(cur,false)}return}
+  if(s.metadata.fromCache||booting||projId)return;booting=true;
+  try{const old=await db.doc('cad/model').get();await createProject(old.exists?{...clean(old.data()),thumb:undefined}:{name:'Proyecto sin título'})}finally{booting=false}},
+  e=>status('err','Sincronización detenida'));
  chatRef.onSnapshot(s=>{if(s.metadata.hasPendingWrites||!s.exists)return;const d=s.data();
   const msgs=Array.isArray(d.msgs)?d.msgs.filter(m=>m&&typeof m.text==='string').map(m=>({id:String(m.id||uid()),role:String(m.role||'claude'),text:m.text,at:String(m.at||''),imgs:Array.isArray(m.imgs)?m.imgs.map(String).filter(x=>IMGID.test(x)).slice(0,8):undefined})):[];
   const newClaude=msgs.length>chat.msgs.length&&msgs.at(-1)?.role==='claude';

@@ -3,7 +3,8 @@
 CAD 3D en el navegador (sólidos + operaciones booleanas) que se usa **a la vez** con el ratón y desde el chat con Claude.
 
 - **App publicada:** https://claude.ai/artifact/Y7Cktv7Whkm8ghJPjxEfVD
-- El modelo vive en la base de datos del artefacto (documento `cad/model`). Lo que tú cambias en la app, Claude lo lee; lo que Claude escribe, aparece en tu pantalla al momento ("Claude actualizó el modelo"). Los cambios de Claude se pueden deshacer con Ctrl+Z.
+- **Proyectos**: botón «Proyectos» en la barra superior para crear, abrir, duplicar y borrar. Todo se guarda solo; cada proyecto vive en `projects/<id>` de la base de datos del artefacto y `cad/state` indica cuál está abierto.
+- El modelo abierto se sincroniza en vivo. Lo que tú cambias en la app, Claude lo lee; lo que Claude escribe, aparece en tu pantalla al momento ("Claude actualizó el modelo"). Los cambios de Claude se pueden deshacer con Ctrl+Z.
 
 ## Qué hace
 

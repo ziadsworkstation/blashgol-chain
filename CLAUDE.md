@@ -3,9 +3,10 @@
 Este repo es **Blashgol CAD**. El usuario edita el modelo en la app y pide cambios en el chat (de Claude Code o el chat integrado en el artefacto).
 
 - Artefacto publicado: slug `fbe901a8-2ee9-4131-9a0b-66808b334e74` (https://claude.ai/artifact/Y7Cktv7Whkm8ghJPjxEfVD).
-- Modelo compartido: documento `cad/model` de la base de datos del artefacto.
-  - Leer: `db_get` (slug, path `cad/model`). Anota la `version`.
-  - Escribir: `db_write` con `op: "set"`, `ifVersion` = versión leída, y el modelo completo con `"by": "claude"` y `"at"` (ISO). Lee siempre justo antes de escribir: el usuario puede haber cambiado algo.
+- **Proyectos**: cada proyecto es el documento `projects/<pid>` (`{name, units, objects, refs, by, at, thumb?}`). El proyecto abierto en la página está en `cad/state` → `{current: "<pid>"}`. `cad/model` es antiguo (ya migrado); no lo uses.
+  - Para cambiar el modelo: `db_get cad/state` → `db_get projects/<current>` (anota `version`) → `db_write` `set` con `ifVersion`, el modelo completo, `"by": "claude"` y `"at"` (ISO). Conserva `thumb` si existe. Lee siempre justo antes de escribir.
+  - Crear un proyecto nuevo: `set projects/p<8 letras/números>` y, si el usuario quiere verlo ya, `set cad/state {current, at}` (la página lo abre sola).
+  - El mensaje del chat incluye `proyecto: Nombre (pid)`: trabaja sobre ese pid.
 - Formato del modelo: ver README.md. mm, Z arriba, operaciones en orden de lista.
 
 ## Chat integrado (pestaña «Chat con Claude» del artefacto)
