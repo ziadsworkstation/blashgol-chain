@@ -15,6 +15,7 @@ CAD 3D en el navegador (sólidos + operaciones booleanas) que se usa **a la vez*
   - **Barrido** de un perfil por una trayectoria 3D (suave o poligonal)
   - **Recubrir** (loft) entre dos perfiles distintos
   - **Nervio**: línea abierta que se rellena hasta tocar el material anterior, con espesor
+- **Imágenes de referencia**: adjunta fotos o planos en el chat (botón, pegar o arrastrar) para que Claude construya a partir de ellas, y colócalas en la vista 3D como plano de calco (como «Picture» de Rhino) con plano, ancho, posición y opacidad.
 - **Patrones** lineal y circular, y **simetría** respecto a los planos del origen, en cualquier pieza.
 - Cada pieza es **Sólido**, **Hueco** (se resta) o **Intersección**. Se aplican en el orden de la lista.
 - Gizmo para mover / rotar / escalar, ajuste a rejilla (1, 5, 10, 0,5 mm o libre), giros de 15°.
@@ -53,6 +54,8 @@ Unidades en mm, eje Z hacia arriba. En los sólidos `pos` es el **centro**; en l
 | `rib`      | `t` (espesor), `d` (distancia máx.), `flip` + `sk` (línea abierta) |
 
 Los bocetos son `{"loops": [[[x,y],…], …]}`: el primer lazo es el contorno y los demás, agujeros. Se dibujan en el plano XY local de la pieza; `rot` lo orienta (`[90,0,0]` = plano XZ, `[90,90,0]` = plano YZ) y `pos` es su origen.
+
+Imágenes de calco a nivel de modelo: `"refs": [{"img": "<asset id>", "plane": "XZ", "w": 100, "pos": [0,0,50], "op": 0.6, "hidden": false}]` (`w` = ancho en mm, `pos` = centro).
 
 Opcionales en cualquier pieza: `"pat": {"t":"lin","n":3,"d":[20,0,0]}` o `{"t":"circ","n":6,"a":360,"ax":"z","c":[0,0,0]}`, y `"mir": {"x":true}` (espejo respecto al plano YZ).
 

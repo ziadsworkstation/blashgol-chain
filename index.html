@@ -115,6 +115,16 @@ kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:
 .chips{display:flex;flex-wrap:wrap;gap:4px}
 .chip{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:3px 10px;cursor:pointer;font-size:13px;min-height:30px}
 .chip.on{border-color:var(--cm);color:var(--cm);font-weight:600}
+.thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.thumbs img{width:84px;height:84px;object-fit:cover;border-radius:8px;cursor:zoom-in;border:1px solid #0002;background:var(--line)}
+.atts{display:flex;flex-wrap:wrap;gap:6px}
+.att{position:relative}.att img{width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.att.up img{opacity:.45}.att.err img{outline:2px solid var(--cm)}
+.att .ib{position:absolute;top:-8px;right:-8px;width:22px;height:22px;background:var(--ink);color:var(--bg);border-radius:50%;font-size:13px;line-height:1}
+.ref{border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:8px}
+.ref>img{width:100%;max-height:110px;object-fit:contain;background:var(--soft);border-radius:6px;margin-bottom:6px}
+#imgv{width:min(900px,94vw)}#imgv img{width:100%;max-height:70vh;object-fit:contain;background:var(--soft);border-radius:8px}
+#chatpane.drop{outline:2px dashed var(--pr);outline-offset:-6px}
 @media (max-width:900px){
  body{overflow:auto}
  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto 60vh auto;height:auto}
@@ -173,6 +183,7 @@ kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:
   <div class="pane" id="designpane">
    <section><h2>Árbol de operaciones (se aplican en orden)</h2><ul id="tree"></ul></section>
    <section id="props"></section>
+   <section id="refs"></section>
    <section class="help"><h2>Atajos</h2>
     Clic para seleccionar · arrastra para orbitar · rueda para zoom · botón derecho para desplazar.<br>
     <kbd>W</kbd> mover <kbd>E</kbd> rotar <kbd>R</kbd> escalar <kbd>F</kbd> encuadrar <kbd>Supr</kbd> borrar <kbd>Ctrl</kbd>+<kbd>D</kbd> duplicar <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer.<br>
@@ -183,13 +194,17 @@ kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:
    <div id="log" aria-live="polite"></div>
    <div class="composer">
     <div class="seg" id="cmode"><button data-c="claude" class="on" title="Llega a la conversación de Claude Code que gestiona este proyecto">Claude (este proyecto)</button><button data-c="ai" title="Un Claude rápido dentro de la página, usa tu cuenta">Asistente rápido</button></div>
+    <div class="atts" id="atts" hidden></div>
     <textarea id="cin" placeholder="Pide un cambio: «haz los taladros de M5», «añade un nervio de 4 mm»…"></textarea>
-    <div class="row" style="margin:0"><span id="cstat" class="sp"></span><button class="btn" id="cstop" hidden>Detener</button><button class="btn pri" id="csend">Enviar</button></div>
+    <div class="row" style="margin:0"><button class="btn" id="cattach" title="Adjuntar imágenes de referencia (también puedes pegarlas o arrastrarlas)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-8 8"/></svg>Imagen</button><span id="cstat" class="sp"></span><button class="btn" id="cstop" hidden>Detener</button><button class="btn pri" id="csend">Enviar</button></div>
    </div>
   </div>
  </aside>
 </div>
 <div id="toast" role="status"></div>
+<input type="file" id="cfile" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+<input type="file" id="reffile" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+<dialog id="imgv"><img id="imgvi" alt="Imagen de referencia"><div class="row"><button class="btn pri" id="imgref">Usar como referencia en 3D</button><span class="sp"></span><button class="btn" id="imgclose">Cerrar</button></div></dialog>
 <dialog id="dlg"><h2 style="margin:0 0 8px;font-size:16px">Modelo en JSON</h2>
  <p class="help" style="margin:0 0 8px">Puedes copiarlo, editarlo a mano o pegar otro modelo y aplicarlo.</p>
  <textarea id="jtxt" class="code" spellcheck="false"></textarea>
@@ -273,10 +288,11 @@ const PLANES={XY:[0,0,0],XZ:[90,0,0],YZ:[90,90,0]};
 const PALETTE=['#8aa4c8','#d9a441','#6aa57d','#c97b63','#9b84c4','#5fa8b5'];
 const num=(v,d,min=-1e5,max=1e5)=>{v=+v;return Number.isFinite(v)?Math.min(max,Math.max(min,v)):d};
 function r3(v){return Math.round(v*1000)/1000}
+const IMGID=/^[A-Za-z0-9_-]{8,64}$/;
 const uid=()=>'o'+Math.random().toString(36).slice(2,8);
 
 // ---------- model ----------
-let model={name:'Modelo sin título',units:'mm',objects:[]};
+let model={name:'Modelo sin título',units:'mm',objects:[],refs:[]};
 let sel=null,before=null,undoS=[],redoS=[],lastBy='usuario';
 function cleanLoops(sk,minPts){const out=[];for(const l of Array.isArray(sk?.loops)?sk.loops.slice(0,30):[]){
  if(!Array.isArray(l))continue;const pts=l.slice(0,3000).map(p=>[num(p?.[0],0),num(p?.[1],0)]);if(pts.length>=minPts)out.push(pts)}return out}
@@ -299,14 +315,16 @@ function clean(m){
   if(o.mir&&(o.mir.x||o.mir.y||o.mir.z))x.mir={x:!!o.mir.x,y:!!o.mir.y,z:!!o.mir.z};
   out.objects.push(x);
  }
+ out.refs=(Array.isArray(m?.refs)?m.refs.slice(0,12):[]).filter(r=>IMGID.test(String(r?.img))).map(r=>({id:String(r.id??'').replace(/[^\w-]/g,'').slice(0,40)||uid(),img:String(r.img),
+  plane:PLANES[r.plane]?r.plane:'XZ',w:num(r.w,100,1,5000),pos:[0,1,2].map(i=>num(r.pos?.[i],0)),op:num(r.op,.6,0,1),hidden:!!r.hidden}));
  return out}
-const snap=()=>JSON.stringify({name:model.name,objects:model.objects});
+const snap=()=>JSON.stringify({name:model.name,objects:model.objects,refs:model.refs});
 function begin(){if(before===null)before=snap()}
 function commit(by='usuario'){
  const now=snap();
  if(before!==null&&before!==now){undoS.push(before);if(undoS.length>150)undoS.shift();redoS.length=0;lastBy=by;save()}
  before=null;ui()}
-function restore(s){const m=JSON.parse(s);model.name=m.name;model.objects=m.objects;if(!findO(sel))sel=null;rebuild();ui();lastBy='usuario';save()}
+function restore(s){const m=JSON.parse(s);model.name=m.name;model.objects=m.objects;model.refs=m.refs||[];if(!findO(sel))sel=null;rebuild();ui();lastBy='usuario';save()}
 const findO=id=>model.objects.find(o=>o.id===id);
 
 // ---------- three ----------
@@ -431,7 +449,7 @@ function syncMesh(o){
 function setGeom(m,g){m.geometry?.dispose();m.geometry=g;m.userData.edges.geometry.dispose();m.userData.edges.geometry=new THREE.EdgesGeometry(g,25)}
 function rebuild(){const ids=new Set(model.objects.map(o=>o.id));
  for(const[id,m]of meshes)if(!ids.has(id)){if(tc.object===m)tc.detach();parts.remove(m);m.geometry.dispose();meshes.delete(id)}
- for(const o of model.objects)syncMesh(o);rebuildResult();attachSel()}
+ for(const o of model.objects)syncMesh(o);rebuildResult();attachSel();rebuildRefs()}
 const AXV={x:new THREE.Vector3(1,0,0),y:new THREE.Vector3(0,1,0),z:new THREE.Vector3(0,0,1)};
 function instMats(o){const out=[new THREE.Matrix4()],pt=o.pat;
  if(pt?.t==='lin')for(let k=1;k<pt.n;k++)out.push(new THREE.Matrix4().makeTranslation(pt.d[0]*k,pt.d[1]*k,pt.d[2]*k));
@@ -576,7 +594,7 @@ function ui(){
  $('#empty').hidden=model.objects.length>0;$('#cnt').textContent=model.objects.length;
  const b=bounds(),s=new THREE.Vector3();
  $('#bb').textContent=b.isEmpty()?'—':(b.getSize(s),`${+s.x.toFixed(1)} × ${+s.y.toFixed(1)} × ${+s.z.toFixed(1)} mm`);
- $('#vol').textContent=lastVol!=null?`${(lastVol/1000).toFixed(2)} cm³`:'—';props()}
+ $('#vol').textContent=lastVol!=null?`${(lastVol/1000).toFixed(2)} cm³`:'—';props();refsPanel()}
 $('#tree').onclick=e=>{const li=e.target.closest('li[data-id]');if(!li)return;const id=li.dataset.id,a=e.target.dataset.a;
  if(!a)return select(id);const i=model.objects.findIndex(o=>o.id===id),o=model.objects[i];begin();
  if(a==='vis')o.hidden=!o.hidden;
@@ -705,12 +723,46 @@ $('#skok').onclick=()=>{const o=findO(SK.id);if(!o)return $('#sk').close();
  begin();o[SK.key]={loops:loops.map(l=>l.map(p=>p.map(r3)))};syncMesh(o);rebuildResult();commit();$('#sk').close();toast('Boceto aplicado')};
 new ResizeObserver(()=>skDraw()).observe($('#svgw'));
 
+// ---------- reference images (como «Picture» de Rhino) ----------
+let assets=null;const refsG=new THREE.Group(),texCache=new Map();scene.add(refsG);
+function rebuildRefs(){for(const c of [...refsG.children]){refsG.remove(c);c.geometry.dispose();c.material.dispose()}
+ for(const r of model.refs||[]){if(r.hidden)continue;let t=texCache.get(r.img);
+  if(!t){t=new THREE.TextureLoader().load('/_blob/'+r.img,()=>rebuildRefs(),undefined,()=>{});t.colorSpace=THREE.SRGBColorSpace;texCache.set(r.img,t)}
+  const asp=t.image?.width?t.image.height/t.image.width:.75;
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({map:t,transparent:true,opacity:r.op,side:THREE.DoubleSide,depthWrite:false}));
+  m.scale.set(r.w,r.w*asp,1);m.rotation.set(...PLANES[r.plane].map(D2R));m.position.fromArray(r.pos);m.renderOrder=-1;refsG.add(m)}}
+function refsPanel(){const el=$('#refs');if(el.contains(document.activeElement)&&document.activeElement.tagName!=='BUTTON')return;
+ el.innerHTML='<h2>Imágenes de referencia</h2>'+((model.refs||[]).length?model.refs.map(r=>`<div class="ref" data-r="${esc(r.id)}"><img src="/_blob/${esc(r.img)}" alt="Referencia"><div class="grid">
+  <label class="f">Plano<select data-rk="plane">${Object.keys(PLANES).map(k=>`<option ${r.plane===k?'selected':''}>${k}</option>`).join('')}</select></label>
+  <label class="f">Ancho (mm)<input type="number" data-rk="w" value="${r.w}" step="5"></label>
+  <label class="f">Opacidad<input type="number" data-rk="op" value="${r.op}" step="0.1" min="0" max="1"></label>
+  ${['X','Y','Z'].map((a,i)=>`<label class="f">Centro ${a}<input type="number" data-rk="pos.${i}" value="${r.pos[i]}" step="1"></label>`).join('')}</div>
+  <div class="row"><label class="ck"><input type="checkbox" data-rk="vis" ${r.hidden?'':'checked'}>Visible</label><span class="sp"></span><button class="btn" data-rdel="1">Quitar</button></div></div>`).join('')
+  :'<p class="none" style="margin:0">Pon una foto o un plano en la vista 3D para calcar encima (como «Picture» en Rhino). También puedes adjuntar imágenes en el Chat.</p>')
+  +`<div class="row"><button class="btn" id="refadd" ${assets?'':'disabled title="Solo los editores del artefacto pueden subir imágenes"'}>+ Imagen de referencia</button></div>`}
+function refEdit(e,final){const box=e.target.closest('[data-r]'),k=e.target.dataset.rk;if(!box||!k)return;const r=model.refs.find(x=>x.id===box.dataset.r);if(!r)return;begin();
+ if(k==='vis')r.hidden=!e.target.checked;else if(k==='plane')r.plane=e.target.value;
+ else{const v=+e.target.value;if(e.target.value===''||!Number.isFinite(v))return;if(k.startsWith('pos.'))r.pos[+k[4]]=v;else if(k==='w')r.w=Math.max(1,v);else if(k==='op')r.op=Math.min(1,Math.max(0,v))}
+ rebuildRefs();if(final)commit()}
+$('#refs').addEventListener('input',e=>refEdit(e,false));
+$('#refs').addEventListener('change',e=>refEdit(e,true));
+$('#refs').addEventListener('click',e=>{if(e.target.id==='refadd')return $('#reffile').click();
+ if(e.target.dataset.rdel){const id=e.target.closest('[data-r]').dataset.r;begin();model.refs=model.refs.filter(r=>r.id!==id);rebuildRefs();commit()}});
+async function shrink(file){const bmp=await createImageBitmap(file);const k=Math.min(1,1600/Math.max(bmp.width,bmp.height));
+ const c=document.createElement('canvas');c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);const x=c.getContext('2d');
+ x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(bmp,0,0,c.width,c.height);
+ const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.86));return{blob,w:c.width,h:c.height}}
+function addRef(img,w=100,asp=.75){begin();model.refs=model.refs||[];const plane='XZ';
+ model.refs.push({id:uid(),img,plane,w,pos:[0,0,r3(w*asp/2)],op:.6,hidden:false});rebuildRefs();commit();toast('Referencia añadida en el plano XZ (vista Alzado)');fit(VIEWS.front)}
+$('#reffile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f||!assets)return;
+ try{const s=await shrink(f);const r=await assets.upload(s.blob,{type:'image/jpeg'});addRef(r.id,100,s.h/s.w)}catch(err){toast('No se pudo subir la imagen'+(err?.code?' ('+err.code+')':''))}};
+
 // ---------- JSON / STL ----------
 const dlg=$('#dlg');
-$('#json').onclick=()=>{$('#jtxt').value=JSON.stringify({name:model.name,units:'mm',objects:model.objects},null,1);dlg.showModal()};
+$('#json').onclick=()=>{$('#jtxt').value=JSON.stringify({name:model.name,units:'mm',objects:model.objects,refs:model.refs},null,1);dlg.showModal()};
 $('#jclose').onclick=()=>dlg.close();
 $('#jcopy').onclick=async()=>{try{await navigator.clipboard.writeText($('#jtxt').value);toast('Copiado')}catch{$('#jtxt').select();toast('Selecciona y copia con Ctrl+C')}};
-$('#japply').onclick=()=>{try{const m=clean(JSON.parse($('#jtxt').value));begin();model.name=m.name;model.objects=m.objects;sel=null;rebuild();commit();dlg.close();fit();toast('Modelo aplicado')}catch(e){toast('JSON no válido: '+e.message)}};
+$('#japply').onclick=()=>{try{const m=clean(JSON.parse($('#jtxt').value));begin();model.name=m.name;model.objects=m.objects;model.refs=m.refs;sel=null;rebuild();commit();dlg.close();fit();toast('Modelo aplicado')}catch(e){toast('JSON no válido: '+e.message)}};
 function stlText(){return new STLExporter().parse(exportTarget(),{binary:false})}
 $('#stl').onclick=async()=>{if(!model.objects.length)return toast('No hay nada que exportar');
  const data=stlText(),filename=(model.name.replace(/[^\w\- ]+/g,'').trim()||'modelo')+'.stl';
@@ -724,15 +776,15 @@ let ref=null,saveTimer=0,writing=false,again=false,dirty=false;
 function status(cls,t){$('#sync').className=cls;$('#sync span').textContent=t}
 function save(){dirty=true;clearTimeout(saveTimer);saveTimer=setTimeout(flush,350)}
 async function flush(){
- const body={name:model.name,units:'mm',objects:model.objects,by:lastBy,at:new Date().toISOString()};
+ const body={name:model.name,units:'mm',objects:model.objects,refs:model.refs,by:lastBy,at:new Date().toISOString()};
  if(!ref){try{localStorage.setItem('blashgol-cad',JSON.stringify(body))}catch{}dirty=false;return}
  if(writing){again=true;return}writing=true;status('busy','Guardando…');
  try{await ref.set(JSON.parse(JSON.stringify(body)));if(!again)dirty=false;status('on','Guardado · Claude lo ve')}
  catch(e){dirty=false;status('err',e?.code==='invalid_argument'?'Solo lectura':e?.code==='quota_exceeded'?'Modelo demasiado grande':'Error al guardar')}
  writing=false;if(again){again=false;flush()}}
-function applyRemote(d){const m=clean(d);const s=JSON.stringify({name:m.name,objects:m.objects});
+function applyRemote(d){const m=clean(d);const s=JSON.stringify({name:m.name,objects:m.objects,refs:m.refs});
  if(s===snap())return;if(dirty||tc.dragging||before!==null||$('#sk').open)return;
- const first=!model.objects.length;undoS.push(snap());redoS.length=0;model.name=m.name;model.objects=m.objects;
+ const first=!model.objects.length;undoS.push(snap());redoS.length=0;model.name=m.name;model.objects=m.objects;model.refs=m.refs;
  if(!findO(sel))sel=null;$('#props').dataset.for='';rebuild();ui();if(first)fit(VIEWS.iso);
  if(d.by==='claude')toast('Claude actualizó el modelo (Ctrl+Z para deshacer)')}
 
@@ -742,12 +794,14 @@ const ROLE={user:'Tú',claude:'Claude',ai:'Asistente rápido'};
 function renderChat(){const log=$('#log');const near=log.scrollHeight-log.scrollTop-log.clientHeight<60;log.innerHTML='';
  if(!chat.msgs.length){const p=document.createElement('p');p.className='none';p.textContent='Escribe aquí lo que quieras diseñar o cambiar. Con «Claude (este proyecto)» el mensaje llega a la conversación de Claude Code que mantiene esta app; la respuesta aparece aquí y el modelo se actualiza solo.';log.append(p)}
  for(const m of chat.msgs){const d=document.createElement('div');d.className='msg '+(ROLE[m.role]?m.role:'claude');
-  const s=document.createElement('small');s.textContent=(ROLE[m.role]||'Claude')+(m.at?' · '+new Date(m.at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'');d.append(s,document.createTextNode(String(m.text||'')));log.append(d)}
+  const s=document.createElement('small');s.textContent=(ROLE[m.role]||'Claude')+(m.at?' · '+new Date(m.at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'');d.append(s,document.createTextNode(String(m.text||'')));
+  if(m.imgs?.length){const th=document.createElement('div');th.className='thumbs';for(const id of m.imgs){if(!IMGID.test(id))continue;const im=document.createElement('img');im.src='/_blob/'+id;im.alt='Imagen adjunta';im.onclick=()=>openImg(id);th.append(im)}d.append(th)}
+  log.append(d)}
  if(near||chat.msgs.at(-1)?.role==='user')log.scrollTop=log.scrollHeight}
 async function saveChat(){chat.msgs=chat.msgs.slice(-150);
  if(!chatRef){try{localStorage.setItem('blashgol-chat',JSON.stringify(chat))}catch{}return}
  try{await chatRef.set(JSON.parse(JSON.stringify(chat)))}catch(e){toast('No se pudo guardar el chat')}}
-function pushMsg(role,text){const m={id:uid(),role,text:String(text).slice(0,8000),at:new Date().toISOString()};chat.msgs.push(m);seenN=chat.msgs.length;renderChat();return m}
+function pushMsg(role,text,imgs){const m={id:uid(),role,text:String(text).slice(0,8000),at:new Date().toISOString()};if(imgs?.length)m.imgs=imgs;chat.msgs.push(m);seenN=chat.msgs.length;renderChat();return m}
 $$('.tabs button').forEach(b=>b.onclick=()=>{$$('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
  $('#designpane').hidden=b.dataset.tab!=='design';$('#chatpane').hidden=b.dataset.tab!=='chat';
  if(b.dataset.tab==='chat'){$('#dot').hidden=true;seenN=chat.msgs.length;refreshCStat();const l=$('#log');l.scrollTop=l.scrollHeight}});
@@ -757,17 +811,39 @@ async function refreshCStat(){
  if(cmode==='claude'){canClaude=comments?await comments.canSendToClaude().catch(()=>'off'):'off';
   $('#cstat').textContent={available:'Llega a la sesión de Claude Code de este proyecto.',writers_only:'Solo los editores del artefacto pueden escribir a Claude.',no_session:'La sesión de Claude no está activa ahora; prueba el Asistente rápido.'}[canClaude]||'No disponible en esta vista; usa el Asistente rápido.'}
  else $('#cstat').textContent=sample?'Responde al momento dentro de la página y edita el modelo (usa tu cuenta).':'No disponible en esta vista.'}
+let pending=[],viewing=null;
+function openImg(id){viewing=id;$('#imgvi').src='/_blob/'+id;$('#imgref').disabled=!assets;$('#imgv').showModal()}
+$('#imgclose').onclick=()=>$('#imgv').close();
+$('#imgref').onclick=()=>{const im=$('#imgvi');$('#imgv').close();addRef(viewing,100,im.naturalWidth?im.naturalHeight/im.naturalWidth:.75)};
+function renderPending(){const el=$('#atts');el.hidden=!pending.length;el.innerHTML='';
+ pending.forEach((p,i)=>{const sp=document.createElement('span');sp.className='att '+p.st;const im=document.createElement('img');im.src=p.url;im.alt='';
+  const b=document.createElement('button');b.className='ib';b.textContent='×';b.title='Quitar';b.onclick=()=>{URL.revokeObjectURL(p.url);pending.splice(i,1);renderPending()};sp.append(im,b);el.append(sp)})}
+function addPending(files){for(const f of files){if(!/^image\/(png|jpeg|webp|gif)$/.test(f.type))continue;if(pending.length>=4){toast('Máximo 4 imágenes por mensaje');break}
+ const p={url:URL.createObjectURL(f),st:'up',blob:null,id:null};pending.push(p);
+ shrink(f).then(async s=>{p.blob=s.blob;if(assets){try{p.id=(await assets.upload(s.blob,{type:'image/jpeg'})).id}catch(e){p.st='err';toast('No se pudo subir una imagen');return renderPending()}}p.st='ok';renderPending()}).catch(()=>{p.st='err';renderPending()})}
+ renderPending()}
+$('#cattach').onclick=()=>$('#cfile').click();
+$('#cfile').onchange=e=>{addPending([...e.target.files]);e.target.value=''};
+$('#cin').addEventListener('paste',e=>{const f=[...(e.clipboardData?.files||[])].filter(x=>x.type.startsWith('image/'));if(f.length){e.preventDefault();addPending(f)}});
+$('#chatpane').addEventListener('dragover',e=>{e.preventDefault();$('#chatpane').classList.add('drop')});
+$('#chatpane').addEventListener('dragleave',()=>$('#chatpane').classList.remove('drop'));
+$('#chatpane').addEventListener('drop',e=>{e.preventDefault();$('#chatpane').classList.remove('drop');addPending([...e.dataTransfer.files])});
 $('#cin').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#csend').click()}});
-$('#csend').onclick=async()=>{const text=$('#cin').value.trim();if(!text)return;
+$('#csend').onclick=async()=>{let text=$('#cin').value.trim();if(!text&&!pending.length)return;
+ if(pending.some(p=>p.st==='up'))return toast('Espera a que terminen de subir las imágenes');
+ if(!text)text='Construye esto a partir de la imagen de referencia.';
  if(cmode==='claude')return sendToProject(text);return askAI(text)};
 async function sendToProject(text){
  if(!comments)return toast('El canal con Claude no está disponible aquí');
  const o=findO(sel),ctx=`[Chat Blashgol CAD${o?` · selección: ${o.name} (${o.id})`:''}]\n`;
  $('#csend').disabled=true;
  try{let r;
-  try{if(chat.thread)r=await comments.sendToClaude({threadId:chat.thread,text:ctx+text});}catch(e){if(e?.code!=='not_found'&&e?.code!=='invalid')throw e}
-  if(!r){const anchor=await comments.anchorFor($('#log'));r=await comments.sendToClaude({anchor,text:ctx+text})}
-  chat.thread=r.threadId;pushMsg('user',text);$('#cin').value='';await saveChat();$('#cstat').textContent='Enviado. Claude está trabajando; la respuesta aparecerá aquí.'}
+  const ids=pending.filter(p=>p.id).map(p=>p.id);
+  if(pending.length&&!ids.length)throw{message:'las imágenes no se pudieron subir (solo los editores del artefacto pueden subir imágenes)'};
+  const full=ctx+text+(ids.length?`\n[Imágenes de referencia adjuntas (asset ids): ${ids.join(', ')}]`:'');
+  try{if(chat.thread)r=await comments.sendToClaude({threadId:chat.thread,text:full});}catch(e){if(e?.code!=='not_found'&&e?.code!=='invalid')throw e}
+  if(!r){const anchor=await comments.anchorFor($('#log'));r=await comments.sendToClaude({anchor,text:full})}
+  chat.thread=r.threadId;pushMsg('user',text,ids);pending=[];renderPending();$('#cin').value='';await saveChat();$('#cstat').textContent='Enviado. Claude está trabajando; la respuesta aparecerá aquí.'}
  catch(e){$('#cstat').textContent=({consent_required:'Necesitas permitir que la página comente por ti.',forbidden:'No tienes permiso para escribir a Claude aquí.',claude_unavailable:'Claude no está disponible ahora; prueba el Asistente rápido.',rate_limited:'Demasiados mensajes seguidos; espera un poco.'}[e?.code])||'No se pudo enviar: '+(e?.message||e)}
  $('#csend').disabled=false}
 const AI_RULES=`Eres el asistente de Blashgol CAD, un CAD 3D. Responde en español, breve. Modifica el modelo SOLO con las herramientas.
@@ -791,24 +867,29 @@ const aiTools=[
   execute:i=>{const m=clean({name:i.name??model.name,objects:i.objects});aiApply(()=>{model.name=m.name;model.objects=m.objects});return m.objects.length+' piezas'}}];
 function aiApply(fn){begin();fn();if(!findO(sel))sel=null;$('#props').dataset.for='';rebuild();commit('asistente')}
 async function askAI(text){if(!sample)return toast('El asistente rápido no está disponible aquí');
- pushMsg('user',text);$('#cin').value='';saveChat();
+ const blobs=pending.map(p=>p.blob).filter(Boolean),ids=pending.filter(p=>p.id).map(p=>p.id);
+ const lim=blobs.length?await sample.limits().catch(()=>null):null;
+ if(blobs.length&&!lim?.images)return toast('Esta vista no permite enviar imágenes al asistente rápido');
+ pushMsg('user',text,ids);pending=[];renderPending();$('#cin').value='';saveChat();
  const turns=[{role:'user',content:AI_RULES+'\n\nModelo actual:\n'+JSON.stringify({name:model.name,objects:model.objects}).slice(0,60000)+(sel?`\nPieza seleccionada: ${sel}`:'')}];
  for(const m of chat.msgs.slice(-12)){const r=m.role==='user'?'user':'assistant';if(turns.at(-1).role===r)turns.at(-1).content+='\n\n'+m.text;else turns.push({role:r,content:m.text})}
  if(turns.at(-1).role!=='user')turns.push({role:'user',content:text});
  const bubble=pushMsg('ai','Pensando…');aiCtl=new AbortController();$('#cstop').hidden=false;$('#csend').disabled=true;
- try{const r=await sample(turns,{tools:aiTools,signal:aiCtl.signal,onText:({text})=>{bubble.text=text;renderChat()}});bubble.text=r.text}
+ if(blobs.length)turns.at(-1).content+=`\n\n(Adjunto ${blobs.length} imagen(es) de referencia: úsalas para la forma y las proporciones; estima medidas razonables en mm y dilo.)`;
+ try{const r=await sample(turns,{tools:aiTools,signal:aiCtl.signal,...(blobs.length?{images:blobs.slice(0,lim.images.maxCount)}:{}),onText:({text})=>{bubble.text=text;renderChat()}});bubble.text=r.text}
  catch(e){bubble.text=(e?.text?e.text+'\n\n':'')+({cancelled:'(detenido)',not_granted:'No has permitido que la página use Claude.',rate_limited:'Límite alcanzado; inténtalo más tarde.',tools_unavailable:'Esta vista no permite al asistente editar el modelo.'}[e?.code]||'Error: '+(e?.message||e?.code))}
  $('#cstop').hidden=true;$('#csend').disabled=false;renderChat();saveChat()}
 $('#cstop').onclick=()=>aiCtl?.abort();
 
-window.cadAPI={load:m=>{const c=clean(m);model.name=c.name;model.objects=c.objects;sel=null;rebuild();ui();fit(VIEWS.iso)},
+window.cadAPI={load:m=>{const c=clean(m);model.name=c.name;model.objects=c.objects;model.refs=c.refs;sel=null;rebuild();ui();fit(VIEWS.iso)},
  view:v=>{fit(VIEWS[v]);orbit.update();renderer.render(scene,cam)},stl:stlText,model:()=>model,select,openSketch};
 
 drawGrid();ui();fit(VIEWS.iso);renderChat();
 (async()=>{
  const C=window.claude;
  const db=C?await C.use('db').catch(()=>null):null;
- if(C){C.use('comments').then(c=>{comments=c;refreshCStat()}).catch(()=>{});C.use('sample').then(s=>{sample=s;refreshCStat()}).catch(()=>{})}
+ if(C){C.use('comments').then(c=>{comments=c;refreshCStat()}).catch(()=>{});C.use('sample').then(s=>{sample=s;refreshCStat()}).catch(()=>{});
+  C.use('assets').then(a=>{assets=a;refsPanel()}).catch(()=>{})}
  if(!db){try{const s=localStorage.getItem('blashgol-cad');if(s)window.cadAPI.load(JSON.parse(s));const c=localStorage.getItem('blashgol-chat');if(c){chat=JSON.parse(c);renderChat()}}catch{}
   status('','Modo local (sin sincronizar)');refreshCStat();return}
  ref=db.doc('cad/model');chatRef=db.doc('cad/chat');status('busy','Conectando…');
@@ -817,7 +898,7 @@ drawGrid();ui();fit(VIEWS.iso);renderChat();
   if(s.exists)applyRemote(s.data());if(!s.metadata.fromCache&&!writing)status('on','Sincronizado con Claude')},
   e=>{clearTimeout(t);status('err',e.code==='revoked'?'Acceso retirado':'Sincronización detenida')});
  chatRef.onSnapshot(s=>{if(s.metadata.hasPendingWrites||!s.exists)return;const d=s.data();
-  const msgs=Array.isArray(d.msgs)?d.msgs.filter(m=>m&&typeof m.text==='string').map(m=>({id:String(m.id||uid()),role:String(m.role||'claude'),text:m.text,at:String(m.at||'')})):[];
+  const msgs=Array.isArray(d.msgs)?d.msgs.filter(m=>m&&typeof m.text==='string').map(m=>({id:String(m.id||uid()),role:String(m.role||'claude'),text:m.text,at:String(m.at||''),imgs:Array.isArray(m.imgs)?m.imgs.map(String).filter(x=>IMGID.test(x)).slice(0,8):undefined})):[];
   const newClaude=msgs.length>chat.msgs.length&&msgs.at(-1)?.role==='claude';
   chat={msgs,thread:typeof d.thread==='string'?d.thread:chat.thread};renderChat();
   if(newClaude){if($('#chatpane').hidden)$('#dot').hidden=false;$('#cstat').textContent='Claude respondió.';toast('Nuevo mensaje de Claude')}});
