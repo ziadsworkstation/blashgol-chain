@@ -179,6 +179,8 @@ kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:
   <button class="tool" data-add="sweep" title="Barrido de un perfil por una trayectoria"><svg viewBox="0 0 24 24"><path d="M4 19c3 0 3-12 8-12s5 8 8 8"/><circle cx="4" cy="19" r="2.2"/><circle cx="20" cy="15" r="2.2"/></svg>Barrido</button>
   <button class="tool" data-add="loft" title="Recubrir entre dos perfiles"><svg viewBox="0 0 24 24"><rect x="5" y="15" width="14" height="5"/><ellipse cx="12" cy="5" rx="4" ry="1.6"/><path d="M5 15l3-10M19 15l-3-10"/></svg>Recubrir</button>
   <button class="tool" data-add="rib" title="Nervio de refuerzo"><svg viewBox="0 0 24 24"><path d="M4 20h16M4 20V4M4 6l14 14" /><path d="M4 10l10 10M4 14l6 6" stroke-width="1"/></svg>Nervio</button>
+  <button class="tool" data-fx="fillet" title="Redondeo de aristas de la pieza seleccionada"><svg viewBox="0 0 24 24"><path d="M4 20V11a7 7 0 017-7h9"/><path d="M4 20h16" stroke-dasharray="2 2"/></svg>Redondeo</button>
+  <button class="tool" data-fx="chamfer" title="Chaflán de aristas de la pieza seleccionada"><svg viewBox="0 0 24 24"><path d="M4 20V10l6-6h10"/><path d="M4 20h16" stroke-dasharray="2 2"/></svg>Chaflán</button>
   <hr><small>Editar</small>
   <button class="tool" id="dup" title="Duplicar (Ctrl+D)"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V5a1 1 0 011-1h11"/></svg>Duplicar</button>
   <button class="tool" id="floor" title="Apoyar en el suelo"><svg viewBox="0 0 24 24"><rect x="7" y="5" width="10" height="10"/><path d="M3 20h18M12 15v3"/></svg>Al suelo</button>
@@ -224,6 +226,11 @@ kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:
  <p class="help" style="margin:0 0 10px">Cada cambio se guarda solo en el proyecto abierto. Cambia el nombre en la barra superior. Claude trabaja siempre sobre el proyecto que tengas abierto.</p>
  <div id="pjlist" class="pjgrid"></div>
 </dialog>
+<dialog id="fx" style="width:min(460px,94vw)"><h2 style="margin:0 0 10px;font-size:17px" id="fxt">Redondeo</h2>
+ <div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(0,1.4fr)"><label class="f"><span id="fxl">Radio (mm)</span><input id="fxv" type="number" step="0.5" min="0" value="2"></label>
+  <label class="f">Aristas<select id="fxe"><option value="all">Todas</option><option value="caps">Arriba y abajo</option><option value="vert">Verticales (esquinas del croquis)</option></select></label></div>
+ <p class="help" id="fxh" style="margin:8px 0 0"></p>
+ <div class="row"><span class="sp"></span><button class="btn" id="fxc">Cancelar</button><button class="btn pri" id="fxok">Aplicar</button></div></dialog>
 <dialog id="imgv"><img id="imgvi" alt="Imagen de referencia"><div class="row"><button class="btn pri" id="imgref">Usar como referencia en 3D</button><span class="sp"></span><button class="btn" id="imgclose">Cerrar</button></div></dialog>
 <dialog id="dlg"><h2 style="margin:0 0 8px;font-size:16px">Modelo en JSON</h2>
  <p class="help" style="margin:0 0 8px">Puedes copiarlo, editarlo a mano o pegar otro modelo y aplicarlo.</p>
@@ -297,7 +304,7 @@ const TYPES={
  cone:{n:'Cono',p:[['r1','Radio base'],['r2','Radio sup.'],['h','Altura'],['n','Lados','i']],d:{r1:10,r2:0,h:20,n:64}},
  sphere:{n:'Esfera',p:[['r','Radio']],d:{r:10}},
  torus:{n:'Toro',p:[['R','Radio mayor'],['r','Radio tubo']],d:{R:15,r:4}},
- extrude:{n:'Extrusión',sk:1,holes:1,plane:1,p:[['d','Profundidad'],['b','Chaflán/redondeo'],['bs','Segm. borde (1=chaflán)','i'],['t','Vaciado: pared'],['open','Abierta arriba','b'],['sym','Simétrica','b']],d:{d:10,b:0,bs:1,t:0,open:0,sym:0}},
+ extrude:{n:'Extrusión',sk:1,holes:1,plane:1,p:[['d','Profundidad'],['b','Redondeo/chaflán arriba y abajo'],['bs','Segmentos (1 = chaflán)','i'],['t','Vaciado: pared'],['open','Abierta arriba','b'],['sym','Simétrica','b']],d:{d:10,b:0,bs:1,t:0,open:0,sym:0}},
  revolve:{n:'Revolución',sk:1,axis:1,p:[['a','Ángulo (°)'],['n','Segmentos','i']],d:{a:360,n:64}},
  sweep:{n:'Barrido',sk:1,holes:1,path:1,p:[['steps','Pasos','i'],['smooth','Trayectoria suave','b']],d:{steps:80,smooth:1}},
  loft:{n:'Recubrir',sk:1,sk2:1,p:[['h','Altura'],['n','Puntos','i']],d:{h:30,n:64}},
@@ -598,7 +605,7 @@ $('#undo').onclick=()=>{if(!undoS.length)return;redoS.push(snap());restore(undoS
 $('#redo').onclick=()=>{if(!redoS.length)return;undoS.push(snap());restore(redoS.pop())};
 $('#name').addEventListener('input',e=>{begin();model.name=e.target.value.slice(0,120)});
 $('#name').addEventListener('change',()=>commit());
-renderer.domElement.addEventListener('dblclick',()=>{const o=findO(sel);if(o&&TYPES[o.type].sk)openSketch(o.id,'sk')});
+renderer.domElement.addEventListener('dblclick',()=>{const o=findO(sel);if(o)editSketch(o)});
 addEventListener('keydown',e=>{
  if(e.target.closest('input,textarea,select')||$('#sk').open||$('#dlg').open)return;const k=e.key.toLowerCase(),c=e.ctrlKey||e.metaKey;
  if(c&&k==='z'){e.preventDefault();$(e.shiftKey?'#redo':'#undo').click()}else if(c&&k==='y'){e.preventDefault();$('#redo').click()}
@@ -620,13 +627,14 @@ function ui(){
  const b=bounds(),s=new THREE.Vector3();
  $('#bb').textContent=b.isEmpty()?'—':(b.getSize(s),`${+s.x.toFixed(1)} × ${+s.y.toFixed(1)} × ${+s.z.toFixed(1)} mm`);
  $('#vol').textContent=lastVol!=null?`${(lastVol/1000).toFixed(2)} cm³`:'—';props();refsPanel()}
+let lastTree={};
 $('#tree').onclick=e=>{const li=e.target.closest('li[data-id]');if(!li)return;const id=li.dataset.id,a=e.target.dataset.a;
- if(!a)return select(id);const i=model.objects.findIndex(o=>o.id===id),o=model.objects[i];begin();
+ if(!a){const now=Date.now();if(lastTree.id===id&&now-lastTree.t<450){lastTree={};const o=findO(id);if(o)editSketch(o);return}lastTree={id,t:now};return select(id)}const i=model.objects.findIndex(o=>o.id===id),o=model.objects[i];begin();
  if(a==='vis')o.hidden=!o.hidden;
  if(a==='up'&&i>0)model.objects.splice(i-1,0,...model.objects.splice(i,1));
  if(a==='down'&&i<model.objects.length-1)model.objects.splice(i+1,0,...model.objects.splice(i,1));
  rebuild();commit()};
-$('#tree').ondblclick=e=>{const li=e.target.closest('li[data-id]');const o=li&&findO(li.dataset.id);if(o&&TYPES[o.type].sk)openSketch(o.id,'sk')};
+$('#tree').ondblclick=e=>{if(e.target.closest('button'))return;const li=e.target.closest('li[data-id]');const o=li&&findO(li.dataset.id);if(o){sel=o.id;editSketch(o)}};
 function getK(o,k){return k.split('.').reduce((a,b)=>a?.[b],o)}
 function props(){
  const o=findO(sel),el=$('#props');
@@ -640,7 +648,9 @@ function props(){
  el.innerHTML=`<h2>Propiedades · ${T.n}</h2>
   <div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)"><label class="f">Nombre<input data-k="name" value="${esc(o.name)}"></label><label class="f">Color<input type="color" data-k="color" value="${esc(o.color)}"></label></div>
   <div class="ttl">Operación</div><div class="seg" id="opseg">${Object.entries(OPS).map(([k,v])=>`<button data-op="${k}" class="${o.op===k?'on':''}">${v}</button>`).join('')}</div>
-  ${T.sk?`<div class="ttl">Croquis</div><div class="row" style="margin:0"><button class="btn" data-sk="sk">Editar ${T.sk2?'perfil inferior':'croquis'}</button>${T.sk2?'<button class="btn" data-sk="sk2">Editar perfil superior</button>':''}</div>`:''}
+  <div class="ttl">Forma</div>${T.sk?`<div class="row" style="margin:0"><button class="btn" data-sk="sk">Editar ${T.sk2?'perfil inferior':'croquis'}</button>${T.sk2?'<button class="btn" data-sk="sk2">Editar perfil superior</button>':''}</div>`
+   :`<div class="row" style="margin:0"><button class="btn" data-conv="1" title="Convierte el sólido básico en una operación con croquis que puedes dibujar a mano">Editar croquis</button></div><p class="help" style="margin:4px 0 0">Es un sólido básico: al editar su croquis se convierte en ${['cone','sphere','torus'].includes(o.type)?'una revolución':'una extrusión'} con la misma forma.</p>`}
+  ${['box','cylinder','hex','extrude'].includes(o.type)?`<div class="row"><button class="btn" data-fxb="fillet">Redondeo…</button><button class="btn" data-fxb="chamfer">Chaflán…</button></div>`:''}
   ${T.plane?`<div class="ttl">Plano del croquis</div><div class="seg">${Object.keys(PLANES).map(k=>`<button data-plane="${k}" class="${JSON.stringify(PLANES[k])===JSON.stringify(o.rot)?'on':''}">${k}</button>`).join('')}</div>`:''}
   <div class="ttl">Parámetros (mm)</div><div class="grid">${T.p.filter(q=>q[2]!=='b').map(([k,l,kind])=>f('p.'+k,l,o.p[k],kind==='i'?1:k==='a'?15:.5)).join('')}</div>
   ${T.p.some(q=>q[2]==='b')?`<div class="row">${T.p.filter(q=>q[2]==='b').map(([k,l])=>ck('p.'+k,l,o.p[k])).join('')}</div>`:''}
@@ -668,6 +678,8 @@ $('#props').addEventListener('change',e=>{if(e.target.dataset.k&&e.target.type!=
 $('#props').addEventListener('click',e=>{const o=findO(sel);if(!o)return;const t=e.target.closest('button');if(!t)return;
  if(t.dataset.op){begin();o.op=t.dataset.op;syncMesh(o);rebuildResult();commit();$('#props').dataset.for='';props()}
  if(t.dataset.sk)openSketch(o.id,t.dataset.sk);
+ if(t.dataset.conv)editSketch(o);
+ if(t.dataset.fxb)openFx(t.dataset.fxb);
  if(t.dataset.plane){begin();o.rot=[...PLANES[t.dataset.plane]];syncMesh(o);rebuildResult();commit();$('#props').dataset.for='';props()}
  if(t.id==='pathok'){const P=$('#pathtxt').value.split('\n').map(l=>l.split(/[,;\s]+/).filter(Boolean).map(Number)).filter(a=>a.length>=3&&a.every(Number.isFinite)).map(a=>a.slice(0,3));
   if(P.length<2)return toast('La trayectoria necesita al menos 2 puntos');begin();o.path=P;syncMesh(o);rebuildResult();commit();toast('Trayectoria aplicada')}});
@@ -798,7 +810,8 @@ $('#sk').addEventListener('cancel',e=>{e.preventDefault();if(dimT)closeDim();els
 const fmtN=v=>String(+(+v).toFixed(2)).replace('.',',');
 function bbox(l){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const[x,y]of l){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y)}return{x0,y0,x1,y1}}
 function circInfo(l){if(!l||l.length<12)return null;let cx=0,cy=0;for(const[x,y]of l){cx+=x;cy+=y}cx/=l.length;cy/=l.length;
- const rs=l.map(([x,y])=>Math.hypot(x-cx,y-cy)),r=rs.reduce((a,b)=>a+b,0)/rs.length;if(!(r>0)||rs.some(v=>Math.abs(v-r)>r*.02))return null;return{cx,cy,r}}
+ const rs=l.map(([x,y])=>Math.hypot(x-cx,y-cy)),r=rs.reduce((a,b)=>a+b,0)/rs.length;if(!(r>0)||rs.some(v=>Math.abs(v-r)>r*.02))return null;
+ const an=l.map(([x,y])=>Math.atan2(y-cy,x-cx)).sort((a,b)=>a-b);let gap=an[0]+2*Math.PI-an.at(-1);for(let i=1;i<an.length;i++)gap=Math.max(gap,an[i]-an[i-1]);if(gap>D2R(40))return null;return{cx,cy,r}}
 function isRect(l){if(l.length!==4)return false;for(let i=0;i<4;i++){const a=l[i],b=l[(i+1)%4];if(Math.abs(a[0]-b[0])>1e-6&&Math.abs(a[1]-b[1])>1e-6)return false}return true}
 function dimText(x,y,t,ang,anchor){return`<text x="${x}" y="${y}" font-size="12" font-weight="600" fill="#0b4f8a" text-anchor="${anchor}" dominant-baseline="middle" transform="rotate(${ang} ${x} ${y})" paint-order="stroke" stroke="var(--vp)" stroke-width="4">${t}</text>`}
 function dimsSVG(){let g='';const C='#0b4f8a';
@@ -835,8 +848,8 @@ function openDim(t,px,py){dimT=t;const l=SK.loops[t.li];let f;
  box.style.left=Math.max(6,Math.min(px+14,W-box.offsetWidth-6))+'px';box.style.top=Math.max(6,Math.min(py+14,H-box.offsetHeight-6))+'px';
  const i=box.querySelector('input');i.focus();i.select()}
 function setSegLen(l,i,L){const a=l[i],b=l[(i+1)%l.length],dx=b[0]-a[0],dy=b[1]-a[1],cur=Math.hypot(dx,dy),e=1e-6;if(!cur)return;
- if(Math.abs(dy)<e){const d=(L-cur)*Math.sign(dx),bx=b[0];for(const q of l)if(Math.abs(q[0]-bx)<e)q[0]=r3(q[0]+d)}
- else if(Math.abs(dx)<e){const d=(L-cur)*Math.sign(dy),by=b[1];for(const q of l)if(Math.abs(q[1]-by)<e)q[1]=r3(q[1]+d)}
+ if(Math.abs(dy)<e){const d=(L-cur)*Math.sign(dx),m=(a[0]+b[0])/2;for(const q of l)if((q[0]-m)*Math.sign(dx)>0)q[0]=r3(q[0]+d)}
+ else if(Math.abs(dx)<e){const d=(L-cur)*Math.sign(dy),m=(a[1]+b[1])/2;for(const q of l)if((q[1]-m)*Math.sign(dy)>0)q[1]=r3(q[1]+d)}
  else{b[0]=r3(a[0]+dx/cur*L);b[1]=r3(a[1]+dy/cur*L)}}
 function applyDim(){const t=dimT;if(!t||!SK)return;const l=SK.loops[t.li];const v={};
  for(const i of $$('#dimbox input'))v[i.dataset.dk]=+i.value;if(Object.values(v).some(x=>!Number.isFinite(x)))return toast('Medida no válida');
@@ -889,6 +902,58 @@ function addRef(img,w=100,asp=.75){begin();model.refs=model.refs||[];const plane
  model.refs.push({id:uid(),img,plane,w,pos:[0,0,r3(w*asp/2)],op:.6,hidden:false});rebuildRefs();commit();toast('Referencia añadida en el plano XZ (vista Alzado)');fit(VIEWS.front)}
 $('#reffile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f||!assets)return;
  try{const s=await shrink(f);const r=await assets.upload(s.blob,{type:'image/jpeg'});addRef(r.id,100,s.h/s.w)}catch(err){toast('No se pudo subir la imagen'+(err?.code?' ('+err.code+')':''))}};
+
+// ---------- editar forma, redondeo y chaflán ----------
+function roundRect(w,h,r,seg=6){r=Math.min(r,w/2-.01,h/2-.01);if(!(r>0))return rect(w,h);const out=[];
+ for(const[cx,cy,a0]of[[w/2-r,h/2-r,0],[-w/2+r,h/2-r,90],[-w/2+r,-h/2+r,180],[w/2-r,-h/2+r,270]])for(let i=0;i<=seg;i++){const a=D2R(a0+90*i/seg);out.push([r3(cx+r*Math.cos(a)),r3(cy+r*Math.sin(a))])}return out}
+const hexLoop=r=>Array.from({length:6},(_,i)=>{const a=D2R(-90+60*i);return[r3(r*Math.cos(a)),r3(r*Math.sin(a))]});
+function convertFields(o){const p=o.p,E=new THREE.Euler(...o.rot.map(D2R));
+ const sh=dz=>{const v=new THREE.Vector3(0,0,dz).applyEuler(E);return[r3(o.pos[0]+v.x),r3(o.pos[1]+v.y),r3(o.pos[2]+v.z)]};
+ const ext=(loops,d,x={})=>({type:'extrude',p:{d,b:0,bs:1,t:0,open:0,sym:0,...x},sk:{loops},pos:sh(-d/2)});
+ switch(o.type){
+  case 'box':return ext([p.f>0?roundRect(p.x,p.y,p.f):rect(p.x,p.y)],p.z,{b:p.f>0?Math.min(p.f,p.z/2-.01):0,bs:p.f>0?4:1,t:p.t,open:p.open});
+  case 'cylinder':return ext([circ(p.r,p.n)],p.h,{t:p.t,open:p.open});
+  case 'hex':return ext([hexLoop(p.r)],p.h);
+  case 'cone':return{type:'revolve',p:{a:360,n:p.n},sk:{loops:[p.r2>0?[[0,0],[p.r1,0],[p.r2,p.h],[0,p.h]]:[[0,0],[p.r1,0],[0,p.h]]]},pos:sh(-p.h/2)};
+  case 'sphere':return{type:'revolve',p:{a:360,n:64},sk:{loops:[Array.from({length:33},(_,i)=>{const a=D2R(-90+180*i/32);return[r3(Math.max(0,p.r*Math.cos(a))),r3(p.r*Math.sin(a))]})]},pos:[...o.pos]};
+  case 'torus':return{type:'revolve',p:{a:360,n:96},sk:{loops:[circ(p.r,32,p.R,0)]},pos:[...o.pos]};
+ }return null}
+function editSketch(o){
+ if(!TYPES[o.type].sk){const f=convertFields(o);if(!f)return;const old=TYPES[o.type].n;begin();Object.assign(o,f);sel=o.id;syncMesh(o);rebuildResult();attachSel();commit();$('#props').dataset.for='';props();
+  toast(`${old} convertida en ${TYPES[o.type].n} con croquis (Ctrl+Z deshace)`)}
+ openSketch(o.id,'sk')}
+function cornerLoop(l,r,kind,seg=6){const L=ccw(l),n=L.length,out=[];
+ for(let i=0;i<n;i++){const p=L[(i+n-1)%n],c=L[i],q=L[(i+1)%n],a=[p[0]-c[0],p[1]-c[1]],b=[q[0]-c[0],q[1]-c[1]],la=Math.hypot(...a),lb=Math.hypot(...b);
+  if(la<1e-6||lb<1e-6){out.push(c);continue}
+  const ua=[a[0]/la,a[1]/la],ub=[b[0]/lb,b[1]/lb],th=Math.acos(Math.max(-1,Math.min(1,ua[0]*ub[0]+ua[1]*ub[1])));
+  if(th>D2R(160)){out.push(c);continue}
+  const t=Math.min(kind==='fillet'?r/Math.tan(th/2):r,la/2-1e-3,lb/2-1e-3);if(t<=0){out.push(c);continue}
+  const A=[c[0]+ua[0]*t,c[1]+ua[1]*t],B=[c[0]+ub[0]*t,c[1]+ub[1]*t];
+  if(kind==='chamfer'){out.push(A,B);continue}
+  const bis=[ua[0]+ub[0],ua[1]+ub[1]],bl=Math.hypot(...bis),rr=t*Math.tan(th/2),dc=Math.hypot(t,rr),C=[c[0]+bis[0]/bl*dc,c[1]+bis[1]/bl*dc];
+  const a0=Math.atan2(A[1]-C[1],A[0]-C[0]);let da=Math.atan2(B[1]-C[1],B[0]-C[0])-a0;while(da>Math.PI)da-=2*Math.PI;while(da<-Math.PI)da+=2*Math.PI;
+  for(let k=0;k<=seg;k++){const g=a0+da*k/seg;out.push([C[0]+rr*Math.cos(g),C[1]+rr*Math.sin(g)])}}
+ return out.map(q=>q.map(r3))}
+let fxKind='fillet';
+function openFx(kind){const o=findO(sel);if(!o)return toast('Selecciona primero una pieza');
+ if(!['box','cylinder','hex','extrude'].includes(o.type))return toast('Redondeo y chaflán funcionan en cajas, cilindros, hexágonos y extrusiones');
+ fxKind=kind;const F=kind==='fillet';$('#fxt').textContent=(F?'Redondeo':'Chaflán')+' · '+o.name;$('#fxl').textContent=F?'Radio (mm)':'Distancia (mm)';
+ $('#fxv').value=o.type==='box'?(o.p.f||2):o.type==='extrude'?(o.p.b||2):2;
+ $('#fxe').value=o.type==='cylinder'?'caps':'all';$('#fxe').querySelector('[value=vert]').disabled=o.type==='cylinder';
+ $('#fxh').textContent='«Arriba y abajo» redondea los bordes de las caras superior e inferior; «Verticales» redondea las esquinas del croquis. Si la pieza es un sólido básico se convierte en extrusión (salvo redondeo total de una caja). Ctrl+Z deshace.';
+ $('#fx').showModal();$('#fxv').select()}
+$$('[data-fx]').forEach(b=>b.onclick=()=>openFx(b.dataset.fx));
+$('#fxc').onclick=()=>$('#fx').close();
+$('#fxv').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#fxok').click()}});
+$('#fxok').onclick=()=>{const o=findO(sel);if(!o)return $('#fx').close();const r=+$('#fxv').value,e=$('#fxe').value,k=fxKind;
+ if(!Number.isFinite(r)||r<0)return toast('Medida no válida');
+ begin();
+ if(o.type==='box'&&k==='fillet'&&e==='all')o.p.f=r;
+ else{if(o.type!=='extrude')Object.assign(o,convertFields(o));
+  if(e!=='vert'){o.p.b=r;o.p.bs=k==='fillet'?4:1}
+  if(e!=='caps'&&r>0)o.sk.loops[0]=cornerLoop(o.sk.loops[0],r,k)}
+ syncMesh(o);rebuildResult();attachSel();commit();$('#props').dataset.for='';props();$('#fx').close();
+ toast((k==='fillet'?'Redondeo':'Chaflán')+` de ${String(r).replace('.',',')} mm aplicado`)};
 
 // ---------- JSON / STL ----------
 const dlg=$('#dlg');

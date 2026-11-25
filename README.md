@@ -17,6 +17,8 @@ CAD 3D en el navegador (sólidos + operaciones booleanas) que se usa **a la vez*
   - **Recubrir** (loft) entre dos perfiles distintos
   - **Nervio**: línea abierta que se rellena hasta tocar el material anterior, con espesor
 - **Imágenes de referencia**: adjunta fotos o planos en el chat (botón, pegar o arrastrar) para que Claude construya a partir de ellas, y colócalas en la vista 3D como plano de calco (como «Picture» de Rhino) con plano, ancho, posición y opacidad.
+- **Editar cualquier pieza**: doble clic (en la vista o en el árbol) abre su croquis; los sólidos básicos se convierten en extrusión o revolución con la misma forma.
+- **Redondeo** y **Chaflán** como operaciones: en todas las aristas, solo arriba y abajo, o solo en las esquinas del croquis.
 - **Patrones** lineal y circular, y **simetría** respecto a los planos del origen, en cualquier pieza.
 - Cada pieza es **Sólido**, **Hueco** (se resta) o **Intersección**. Se aplican en el orden de la lista.
 - Gizmo para mover / rotar / escalar, ajuste a rejilla (1, 5, 10, 0,5 mm o libre), giros de 15°.
