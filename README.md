@@ -18,7 +18,7 @@ CAD 3D en el navegador (sólidos + operaciones booleanas) que se usa **a la vez*
   - **Nervio**: línea abierta que se rellena hasta tocar el material anterior, con espesor
 - **Imágenes de referencia**: adjunta fotos o planos en el chat (botón, pegar o arrastrar) para que Claude construya a partir de ellas, y colócalas en la vista 3D como plano de calco (como «Picture» de Rhino) con plano, ancho, posición y opacidad.
 - **Editar cualquier pieza**: doble clic (en la vista o en el árbol) abre su croquis; los sólidos básicos se convierten en extrusión o revolución con la misma forma.
-- **Redondeo** y **Chaflán** como operaciones: en todas las aristas, solo arriba y abajo, o solo en las esquinas del croquis.
+- **Redondeo** y **Chaflán** paramétricos (el radio queda guardado en cada esquina del croquis y se cambia cuando quieras, con la herramienta Redondeo del croquis o repitiendo la operación): en todas las aristas, solo arriba y abajo, o solo en las esquinas del croquis.
 - **Patrones** lineal y circular, y **simetría** respecto a los planos del origen, en cualquier pieza.
 - Cada pieza es **Sólido**, **Hueco** (se resta) o **Intersección**. Se aplican en el orden de la lista.
 - Gizmo para mover / rotar / escalar, ajuste a rejilla (1, 5, 10, 0,5 mm o libre), giros de 15°.
@@ -56,7 +56,7 @@ Unidades en mm, eje Z hacia arriba. En los sólidos `pos` es el **centro**; en l
 | `loft`     | `h`, `n` + `sk` (perfil inferior) + `sk2` (superior) |
 | `rib`      | `t` (espesor), `d` (distancia máx.), `flip` + `sk` (línea abierta) |
 
-Los croquis son `{"loops": [[[x,y],…], …]}`: el primer lazo es el contorno y los demás, agujeros. Se dibujan en el plano XY local de la pieza; `rot` lo orienta (`[90,0,0]` = plano XZ, `[90,90,0]` = plano YZ) y `pos` es su origen.
+Los croquis son `{"loops": [[[x,y],…], …]}` (un punto puede ser `[x,y,r]`: `r > 0` redondea esa esquina con radio `r`, `r < 0` la achaflana; es paramétrico): el primer lazo es el contorno y los demás, agujeros. Se dibujan en el plano XY local de la pieza; `rot` lo orienta (`[90,0,0]` = plano XZ, `[90,90,0]` = plano YZ) y `pos` es su origen.
 
 Imágenes de calco a nivel de modelo: `"refs": [{"img": "<asset id>", "plane": "XZ", "w": 100, "pos": [0,0,50], "op": 0.6, "hidden": false}]` (`w` = ancho en mm, `pos` = centro).
 
