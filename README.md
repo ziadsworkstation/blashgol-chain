@@ -7,14 +7,22 @@ CAD 3D en el navegador (sólidos + operaciones booleanas) que se usa **a la vez*
 
 ## Qué hace
 
-- Piezas: caja, cilindro (con nº de lados), prisma hexagonal, cono/tronco, esfera, toro.
+- **Chat con Claude** dentro de la app: los mensajes llegan a la sesión de Claude Code del proyecto, que modifica el modelo y responde en el mismo panel. También hay un «Asistente rápido» que responde al momento dentro de la página.
+- Sólidos: caja (con redondeo y vaciado), cilindro (con vaciado), prisma hexagonal, cono/tronco, esfera, toro.
+- Operaciones con boceto 2D (editor con rejilla, formas rápidas, agujeros, puntos por texto):
+  - **Extrusión** (con chaflán/redondeo de aristas, vaciado, simétrica; plano XY, XZ o YZ)
+  - **Revolución** (ángulo parcial o completo)
+  - **Barrido** de un perfil por una trayectoria 3D (suave o poligonal)
+  - **Recubrir** (loft) entre dos perfiles distintos
+  - **Nervio**: línea abierta que se rellena hasta tocar el material anterior, con espesor
+- **Patrones** lineal y circular, y **simetría** respecto a los planos del origen, en cualquier pieza.
 - Cada pieza es **Sólido**, **Hueco** (se resta) o **Intersección**. Se aplican en el orden de la lista.
 - Gizmo para mover / rotar / escalar, ajuste a rejilla (1, 5, 10, 0,5 mm o libre), giros de 15°.
 - Vistas Iso, Planta, Alzado, Perfil; tamaño total y volumen en vivo.
 - Deshacer/rehacer, duplicar, apoyar en el suelo, ocultar, reordenar.
 - Exportar **STL** (para impresión 3D) y ver/editar/pegar el modelo como **JSON**.
 
-Unidades en mm, eje Z hacia arriba, `pos` es el **centro** de la pieza.
+Unidades en mm, eje Z hacia arriba. En los sólidos `pos` es el **centro**; en las operaciones con boceto, el origen del boceto.
 
 ## Formato del modelo
 
@@ -38,6 +46,15 @@ Unidades en mm, eje Z hacia arriba, `pos` es el **centro** de la pieza.
 | `cone`     | `r1` (base), `r2` (arriba), `h`, `n`   |
 | `sphere`   | `r`                                    |
 | `torus`    | `R` (mayor), `r` (tubo)                |
+| `extrude`  | `d`, `b` (chaflán/redondeo), `bs` (segmentos, 1 = chaflán), `t` (vaciado), `open`, `sym` + `sk` |
+| `revolve`  | `a` (ángulo), `n` + `sk` (perfil x = radio, y = altura; eje Z local) |
+| `sweep`    | `steps`, `smooth` + `sk` (perfil) + `path` `[[x,y,z],…]` |
+| `loft`     | `h`, `n` + `sk` (perfil inferior) + `sk2` (superior) |
+| `rib`      | `t` (espesor), `d` (distancia máx.), `flip` + `sk` (línea abierta) |
+
+Los bocetos son `{"loops": [[[x,y],…], …]}`: el primer lazo es el contorno y los demás, agujeros. Se dibujan en el plano XY local de la pieza; `rot` lo orienta (`[90,0,0]` = plano XZ, `[90,90,0]` = plano YZ) y `pos` es su origen.
+
+Opcionales en cualquier pieza: `"pat": {"t":"lin","n":3,"d":[20,0,0]}` o `{"t":"circ","n":6,"a":360,"ax":"z","c":[0,0,0]}`, y `"mir": {"x":true}` (espejo respecto al plano YZ).
 
 `op`: `add` | `sub` | `int`. `rot` en grados (X, Y, Z). Cilindros, conos y hexágonos van a lo largo de Z.
 

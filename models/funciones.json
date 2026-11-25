@@ -1,0 +1,12 @@
+{"name":"Prueba de operaciones","objects":[
+ {"id":"base","name":"Base","type":"box","p":{"x":120,"y":80,"z":8,"f":2},"pos":[0,0,4],"color":"#8aa4c8"},
+ {"id":"pared","name":"Pared","type":"box","p":{"x":8,"y":80,"z":50},"pos":[-56,0,29],"color":"#8aa4c8"},
+ {"id":"nerv","name":"Nervio","type":"rib","p":{"t":5,"d":80,"flip":1},"sk":{"loops":[[[-52,45],[-15,8]]]},"pos":[0,0,0],"rot":[90,0,0],"color":"#8aa4c8","mir":{"y":false},"pat":{"t":"lin","n":2,"d":[0,50,0]}},
+ {"id":"tal","name":"Taladros","type":"cylinder","op":"sub","p":{"r":3,"h":30,"n":32},"pos":[45,-30,4],"color":"#d9a441","pat":{"t":"lin","n":3,"d":[0,30,0]}},
+ {"id":"cop","name":"Copa","type":"revolve","p":{"a":270,"n":64},"sk":{"loops":[[[0,0],[14,0],[14,2],[3,4],[3,20],[12,30],[12,32],[10,32],[0,23]]]},"pos":[20,0,8],"color":"#c97b63"},
+ {"id":"ext","name":"Pestaña","type":"extrude","p":{"d":6,"b":1,"bs":3},"sk":{"loops":[[[-15,-10],[15,-10],[15,10],[-15,10]],[[-5,-3],[5,-3],[5,3],[-5,3]]]},"pos":[-20,-25,8],"color":"#6aa57d","mir":{"y":true}},
+ {"id":"sw","name":"Asa","type":"sweep","p":{"steps":80,"smooth":1},"sk":{"loops":[[[3,0],[0,3],[-3,0],[0,-3]]]},"path":[[45,0,8],[45,0,30],[60,0,40],[70,0,25],[70,0,8]],"color":"#9b84c4"},
+ {"id":"lo","name":"Transición","type":"loft","p":{"h":25,"n":64},"sk":{"loops":[[[-12,-12],[12,-12],[12,12],[-12,12]]]},"sk2":{"loops":[[[8,0],[0,8],[-8,0],[0,-8]]]},"pos":[-25,25,8],"color":"#5fa8b5"},
+ {"id":"caja","name":"Caja vaciada","type":"box","p":{"x":24,"y":24,"z":20,"t":2,"open":1},"pos":[20,30,18],"color":"#d9a441"},
+ {"id":"ccirc","name":"Pivotes","type":"cylinder","p":{"r":2,"h":10,"n":24},"pos":[20,15,13],"color":"#c97b63","pat":{"t":"circ","n":6,"a":360,"ax":"z","c":[20,0,0]}}
+]}
